@@ -1,0 +1,2630 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>UniTalk (ユニトーク) - 大学生向け授業別匿名掲示板</title>
+    
+    <!-- Google Fonts: Plus Jakarta Sans & Noto Sans JP -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        /* ==========================================================================
+           1. 変数定義 & テーマ設計 (Glassmorphism & Academic Blue)
+           ========================================================================== */
+        :root {
+            /* カラーシステム */
+            --primary: #2563eb;
+            --primary-light: #60a5fa;
+            --primary-dark: #1d4ed8;
+            --primary-glow: rgba(37, 99, 235, 0.15);
+            
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.1);
+            --danger: #ef4444;
+            --danger-glow: rgba(239, 68, 68, 0.1);
+            --warning: #f59e0b;
+            
+            --bg-base: #f8fafc;
+            --bg-card: #ffffff;
+            --bg-card-glass: rgba(255, 255, 255, 0.85);
+            --border-color: #e2e8f0;
+            --border-glass: rgba(226, 232, 240, 0.8);
+            
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --text-white: #ffffff;
+            
+            /* シャドウ & 角丸 */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+            --shadow-glow: 0 8px 30px rgba(37, 99, 235, 0.1);
+            
+            --radius-lg: 20px;
+            --radius-md: 14px;
+            --radius-sm: 8px;
+            
+            --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* ダークモード変数 (将来の拡張用 & メディアクエリ対応) */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-base: #0f172a;
+                --bg-card: #1e293b;
+                --bg-card-glass: rgba(30, 41, 59, 0.85);
+                --border-color: #334155;
+                --border-glass: rgba(51, 65, 85, 0.8);
+                --text-main: #f8fafc;
+                --text-muted: #94a3b8;
+                --primary-glow: rgba(59, 130, 246, 0.25);
+                --shadow-glow: 0 8px 30px rgba(59, 130, 246, 0.15);
+            }
+        }
+
+        /* ==========================================================================
+           2. リセット & 基本スタイル
+           ========================================================================== */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent; /* モバイルのタップ青枠を消す */
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', 'Noto Sans JP', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            line-height: 1.5;
+            overflow-x: hidden;
+            /* ボトムナビゲーション用のパディング (iOSセーフエリア考慮) */
+            padding-bottom: calc(75px + env(safe-area-inset-bottom));
+            transition: background-color 0.3s ease;
+        }
+
+        /* スクロールバーのカスタマイズ */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* ==========================================================================
+           3. 共通コンポーネント & レイアウト
+           ========================================================================== */
+        .container {
+            width: 100%;
+            max-width: 600px; /* モバイルファーストで幅固定 */
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        /* アニメーション用クラス */
+        .fade-in {
+            animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .scale-up {
+            animation: scaleUp 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes scaleUp {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        /* ボタンデザイン */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: var(--radius-md);
+            border: none;
+            cursor: pointer;
+            transition: var(--transition);
+            background-color: var(--border-color);
+            color: var(--text-main);
+        }
+        .btn:active {
+            transform: scale(0.96);
+        }
+        .btn-primary {
+            background-color: var(--primary);
+            color: #fff;
+            box-shadow: var(--shadow-sm);
+        }
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+        }
+        .btn-secondary {
+            background-color: var(--primary-glow);
+            color: var(--primary);
+        }
+        .btn-secondary:hover {
+            background-color: rgba(37, 99, 235, 0.25);
+        }
+        .btn-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+        }
+        .btn-icon:hover {
+            background: var(--bg-base);
+        }
+        .btn-text {
+            background: none;
+            border: none;
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* バッジ */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            background: var(--border-color);
+            color: var(--text-muted);
+        }
+        .badge-primary {
+            background: var(--primary-glow);
+            color: var(--primary);
+        }
+
+        /* フォーム要素 */
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .input-text, .select-control, .textarea-control {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 14px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-card);
+            color: var(--text-main);
+            outline: none;
+            transition: var(--transition);
+        }
+        .input-text:focus, .select-control:focus, .textarea-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px var(--primary-glow);
+        }
+
+        /* ==========================================================================
+           4. ヘッダー (Glassmorphism & Fixed)
+           ========================================================================== */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--bg-card-glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-glass);
+            padding: 12px 16px;
+            box-shadow: var(--shadow-sm);
+        }
+        .header-content {
+            max-width: 600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        .logo-icon-box {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-sm);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            box-shadow: var(--shadow-sm);
+        }
+        .logo-title {
+            font-size: 18px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+        }
+        .univ-selector-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--border-color);
+            padding: 6px 12px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .univ-selector-wrap:hover {
+            opacity: 0.9;
+        }
+
+        /* ==========================================================================
+           5. ボトムナビゲーション (Floating style)
+           ========================================================================== */
+        .bottom-nav {
+            position: fixed;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 32px);
+            max-width: 568px; /* container (600px) - padding (32px) */
+            height: 64px;
+            background: var(--bg-card-glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: 30px;
+            box-shadow: var(--shadow-lg);
+            z-index: 100;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 0 10px;
+            transition: var(--transition);
+        }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            color: var(--text-muted);
+            cursor: pointer;
+            width: 60px;
+            height: 100%;
+            border-radius: 50%;
+            transition: var(--transition);
+        }
+        .nav-item svg {
+            width: 22px;
+            height: 22px;
+            transition: var(--transition);
+        }
+        .nav-item span {
+            font-size: 10px;
+            font-weight: 600;
+        }
+        .nav-item.active {
+            color: var(--primary);
+        }
+        .nav-item.active svg {
+            transform: translateY(-2px);
+            stroke-width: 2.5px;
+        }
+
+        /* ==========================================================================
+           6. 各ビュー (SPA画面の切り替え)
+           ========================================================================== */
+        .view-content {
+            display: none;
+        }
+        .view-content.active {
+            display: block;
+        }
+
+        /* --- 6-1. ホーム画面 --- */
+        .hero-banner {
+            background: linear-gradient(135deg, var(--primary) 0%, #1e40af 100%);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            color: #fff;
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow-glow);
+        }
+        .hero-banner::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.08);
+            filter: blur(20px);
+        }
+        .hero-title {
+            font-size: 22px;
+            font-weight: 800;
+            margin-bottom: 6px;
+        }
+        .hero-desc {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* トレンド/お気に入り授業カード */
+        .horizontal-scroll {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            margin-bottom: 24px;
+            scroll-snap-type: x mandatory;
+        }
+        .course-card {
+            flex: 0 0 180px;
+            scroll-snap-align: start;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 140px;
+        }
+        .course-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--primary-light);
+        }
+        .course-card-tag {
+            font-size: 10px;
+            color: var(--primary);
+            background: var(--primary-glow);
+            padding: 2px 6px;
+            border-radius: 4px;
+            align-self: flex-start;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .course-card-title {
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1.3;
+            margin-bottom: 4px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .course-card-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: auto;
+        }
+
+        /* 最近の投稿 */
+        .recent-posts-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .recent-post-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: var(--shadow-sm);
+        }
+        .recent-post-item:hover {
+            border-color: var(--primary-light);
+            box-shadow: var(--shadow-md);
+        }
+        .recent-post-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .recent-post-title {
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .recent-post-content {
+            font-size: 13px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+        .recent-post-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* --- 6-2. 時間割 & 検索画面 --- */
+        .search-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .search-box-wrap {
+            position: relative;
+        }
+        .search-box-wrap input {
+            padding-left: 44px;
+        }
+        .search-box-wrap svg {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+        .filter-btn-row {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        /* 時間割グリッド */
+        .timetable-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            box-shadow: var(--shadow-sm);
+        }
+        .timetable-grid {
+            display: grid;
+            grid-template-columns: 30px repeat(5, 1fr); /* 時限列 + 月〜金 */
+            gap: 6px;
+            text-align: center;
+        }
+        .timetable-header-cell {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            padding: 6px 0;
+        }
+        .timetable-time-cell {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-muted);
+            background: var(--bg-base);
+            border-radius: var(--radius-sm);
+        }
+        .timetable-cell {
+            background: var(--bg-base);
+            border-radius: var(--radius-sm);
+            aspect-ratio: 0.85 / 1;
+            padding: 4px;
+            font-size: 9px;
+            font-weight: 600;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+            border: 1px dashed transparent;
+            overflow: hidden;
+        }
+        .timetable-cell:hover {
+            background: var(--primary-glow);
+            border-color: var(--primary-light);
+        }
+        .timetable-cell.has-course {
+            background: var(--primary-glow);
+            border: 1px solid var(--primary-light);
+            color: var(--primary-dark);
+        }
+        .timetable-cell-title {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            font-weight: 700;
+        }
+        .timetable-cell-prof {
+            color: var(--text-muted);
+            font-size: 8px;
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .timetable-cell.empty {
+            border: 1px dashed var(--border-color);
+            color: var(--text-muted);
+        }
+
+        /* 検索結果リスト */
+        .search-results-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-top: 16px;
+            margin-bottom: 8px;
+        }
+        .search-results-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* --- 6-3. 授業掲示板画面 (詳細) --- */
+        .board-header {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 16px;
+        }
+        .board-header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        .board-title {
+            font-size: 20px;
+            font-weight: 800;
+            line-height: 1.3;
+        }
+        .board-fav-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: var(--transition);
+        }
+        .board-fav-btn.active {
+            color: #ef4444;
+        }
+        .board-meta-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px 16px;
+            font-size: 13px;
+            margin-bottom: 14px;
+        }
+        .board-meta-item {
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .board-rating-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 12px;
+            margin-top: 8px;
+        }
+        .rating-stars {
+            display: flex;
+            color: var(--warning);
+        }
+        .rating-num {
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        /* タグ横スクロール & 検索 */
+        .board-filter-section {
+            margin-bottom: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .tag-scroll {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+        .tag-pill {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: var(--transition);
+            white-space: nowrap;
+        }
+        .tag-pill.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        /* 掲示板タイムライン投稿 */
+        .posts-timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .post-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            box-shadow: var(--shadow-sm);
+            position: relative;
+        }
+        .post-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .post-user {
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .post-user::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--primary);
+        }
+        .post-time {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        .post-content {
+            font-size: 14px;
+            margin-bottom: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .post-attachment {
+            margin-bottom: 12px;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            max-height: 200px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-base);
+            cursor: pointer;
+        }
+        .post-attachment img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .post-attachment-file {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: var(--bg-base);
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            text-decoration: none;
+            color: var(--text-main);
+        }
+        .post-actions {
+            display: flex;
+            gap: 20px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 12px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .post-action-btn {
+            background: none;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: var(--transition);
+        }
+        .post-action-btn:hover {
+            color: var(--primary);
+        }
+        .post-action-btn.liked {
+            color: var(--danger);
+        }
+        .post-action-btn.liked svg {
+            fill: var(--danger);
+            stroke: var(--danger);
+        }
+        .post-tag-badge {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+        }
+
+        /* リプライリスト */
+        .replies-container {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px dashed var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .reply-item {
+            background: var(--bg-base);
+            padding: 10px 12px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+        }
+        .reply-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        /* 投稿用フローティングボタン */
+        .fab {
+            position: fixed;
+            bottom: 96px;
+            right: 24px;
+            width: 56px;
+            height: 56px;
+            border-radius: 28px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 99;
+            transition: var(--transition);
+        }
+        .fab:active {
+            transform: scale(0.92);
+        }
+
+        /* --- 6-4. マイページ画面 --- */
+        .mypage-profile-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            text-align: center;
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 20px;
+        }
+        .profile-avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: var(--primary-glow);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            font-size: 28px;
+            font-weight: 700;
+            border: 2px solid var(--primary-light);
+        }
+        .profile-univ {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        .profile-nickname {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+        .mypage-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 16px;
+        }
+        .mypage-card-title {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ==========================================================================
+           7. ダイアログ / モーダル (自作)
+           ========================================================================== */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(6px);
+            z-index: 1000;
+            display: none;
+            align-items: flex-end; /* 下部からハーフモーダル風に立ち上げる */
+            justify-content: center;
+        }
+        @media (min-width: 600px) {
+            .modal {
+                align-items: center; /* デスクトップ幅では中央に配置 */
+            }
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: var(--bg-card);
+            width: 100%;
+            max-width: 600px;
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+            padding: 24px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 -10px 25px -5px rgba(0,0,0,0.1);
+            position: relative;
+            animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+        @media (min-width: 600px) {
+            .modal-content {
+                border-radius: var(--radius-lg);
+                animation: scaleUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+            }
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        .modal-close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+        .modal-title-text {
+            font-size: 18px;
+            font-weight: 800;
+            margin-bottom: 20px;
+        }
+
+        /* 添付ファイルプレビュー表示 */
+        .attachment-preview-container {
+            display: none;
+            margin-top: 10px;
+            position: relative;
+            width: 80px;
+            height: 80px;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+        .attachment-preview-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .attachment-preview-remove {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: rgba(0,0,0,0.6);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 10px;
+        }
+
+        /* 空ステート */
+        .empty-state {
+            text-align: center;
+            padding: 32px 16px;
+            color: var(--text-muted);
+        }
+        .empty-state svg {
+            margin: 0 auto 12px;
+            stroke-width: 1.5px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ==========================================================================
+       Header
+       ========================================================================== -->
+    <header>
+        <div class="header-content">
+            <div class="logo-area" onclick="navigate('home')">
+                <div class="logo-icon-box">
+                    <i data-lucide="message-square-quote" style="width:18px; height:18px; stroke-width: 2.5px;"></i>
+                </div>
+                <span class="logo-title">UniTalk</span>
+            </div>
+            <div class="univ-selector-wrap" onclick="openUniversityModal()">
+                <i data-lucide="graduation-cap" style="width:16px; height:16px;"></i>
+                <span id="header-univ-name">大学を選択</span>
+                <i data-lucide="chevron-down" style="width:14px; height:14px;"></i>
+            </div>
+        </div>
+    </header>
+
+    <!-- ==========================================================================
+       Main View Container
+       ========================================================================== -->
+    <main class="container">
+        
+        <!-- --- 6-1. ホーム画面 --- -->
+        <div id="home-view" class="view-content fade-in">
+            <div class="hero-banner">
+                <h2 class="hero-title" id="home-hero-univ">大学匿名ボードへようこそ</h2>
+                <p class="hero-desc">テスト対策、過去問、課題、授業のクチコミを共有して効率よく学生生活を乗り切ろう！</p>
+            </div>
+            
+            <div class="section-header">
+                <h3 class="section-title"><i data-lucide="trending-up" style="color: var(--primary);"></i> トレンド授業掲示板</h3>
+            </div>
+            <div class="horizontal-scroll" id="home-trending-list">
+                <!-- 動的に挿入 -->
+            </div>
+
+            <div class="section-header">
+                <h3 class="section-title"><i data-lucide="bookmark" style="color: var(--success);"></i> お気に入り授業</h3>
+            </div>
+            <div class="horizontal-scroll" id="home-favorites-list">
+                <!-- 動的に挿入 -->
+            </div>
+
+            <div class="section-header">
+                <h3 class="section-title"><i data-lucide="sparkles" style="color: var(--warning);"></i> 最新のクチコミ</h3>
+            </div>
+            <div class="recent-posts-list" id="home-recent-posts">
+                <!-- 動的に挿入 -->
+            </div>
+        </div>
+
+        <!-- --- 6-2. 時間割 & 検索画面 --- -->
+        <div id="search-view" class="view-content fade-in">
+            <div class="search-container">
+                <div class="search-box-wrap">
+                    <i data-lucide="search"></i>
+                    <input type="text" id="search-input" class="input-text" placeholder="授業名・教授名・学部で検索..." oninput="handleSearch()">
+                </div>
+                
+                <div class="filter-btn-row">
+                    <select id="filter-dept" class="select-control" style="width: auto; padding: 6px 12px; font-size: 12px;" onchange="handleSearch()">
+                        <option value="">学部/学科: すべて</option>
+                        <!-- 動的追加 -->
+                    </select>
+                    <select id="filter-day" class="select-control" style="width: auto; padding: 6px 12px; font-size: 12px;" onchange="handleSearch()">
+                        <option value="">曜日: すべて</option>
+                        <option value="月">月曜日</option>
+                        <option value="火">火曜日</option>
+                        <option value="水">水曜日</option>
+                        <option value="木">木曜日</option>
+                        <option value="金">金曜日</option>
+                    </select>
+                </div>
+
+                <!-- 時間割グリッド -->
+                <div class="timetable-section">
+                    <div class="section-header" style="margin-bottom: 12px;">
+                        <h4 style="font-size: 14px; font-weight: 700;"><i data-lucide="calendar" style="width: 16px; height: 16px; display: inline; vertical-align: middle; margin-right: 4px;"></i>時間割から授業を選択</h4>
+                        <span style="font-size: 11px; color: var(--text-muted);">空きコマタップで新規授業登録</span>
+                    </div>
+                    <div class="timetable-grid" id="timetable-grid-body">
+                        <!-- ヘッダー行 -->
+                        <div></div>
+                        <div class="timetable-header-cell">月</div>
+                        <div class="timetable-header-cell">火</div>
+                        <div class="timetable-header-cell">水</div>
+                        <div class="timetable-header-cell">木</div>
+                        <div class="timetable-header-cell">金</div>
+                        
+                        <!-- 1限〜5限を行ごとにJSで描画 -->
+                    </div>
+                </div>
+
+                <!-- 検索結果一覧 -->
+                <div>
+                    <h4 class="search-results-title" id="results-count-text">授業一覧</h4>
+                    <div class="search-results-list" id="search-results-container">
+                        <!-- 検索結果が動的に挿入されます -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- --- 6-3. 授業掲示板画面 (詳細) --- -->
+        <div id="board-view" class="view-content fade-in">
+            <div id="board-header-container">
+                <!-- 動的に挿入 -->
+            </div>
+
+            <div class="board-filter-section">
+                <div class="search-box-wrap">
+                    <i data-lucide="search"></i>
+                    <input type="text" id="board-search-input" class="input-text" placeholder="スレッド内を検索..." oninput="handleBoardSearch()">
+                </div>
+                
+                <div class="tag-scroll" id="board-tag-scroll">
+                    <div class="tag-pill active" onclick="filterBoardTag('all')">すべて</div>
+                    <div class="tag-pill" onclick="filterBoardTag('過去問')">過去問</div>
+                    <div class="tag-pill" onclick="filterBoardTag('課題')">課題</div>
+                    <div class="tag-pill" onclick="filterBoardTag('テスト対策')">テスト対策</div>
+                    <div class="tag-pill" onclick="filterBoardTag('出席')">出席</div>
+                    <div class="tag-pill" onclick="filterBoardTag('雑談')">雑談</div>
+                </div>
+            </div>
+
+            <!-- 掲示板タイムライン投稿 -->
+            <div class="posts-timeline" id="board-posts-container">
+                <!-- 投稿リスト -->
+            </div>
+        </div>
+
+        <!-- --- 6-4. マイページ画面 --- -->
+        <div id="mypage-view" class="view-content fade-in">
+            <div class="mypage-profile-section">
+                <div class="profile-avatar" id="mypage-avatar">匿</div>
+                <div class="profile-univ" id="mypage-univ-name">未設定の大学</div>
+                <div class="profile-nickname" id="mypage-nickname-text">匿名ユーザー</div>
+                <button class="btn btn-secondary" onclick="openProfileEditModal()">
+                    <i data-lucide="edit-3" style="width: 14px; height: 14px;"></i> ニックネームを変更
+                </button>
+            </div>
+
+            <div class="mypage-card">
+                <h4 class="mypage-card-title"><i data-lucide="shield-check" style="color: var(--primary);"></i> 大学認証ステータス</h4>
+                <div id="auth-status-container">
+                    <!-- 動的認証UI -->
+                </div>
+            </div>
+
+            <div class="mypage-card">
+                <h4 class="mypage-card-title"><i data-lucide="message-square" style="color: var(--success);"></i> 自分の投稿履歴</h4>
+                <div class="recent-posts-list" id="mypage-my-posts">
+                    <!-- 動的に挿入 -->
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ==========================================================================
+       Floating Action Button (新規投稿用)
+       ========================================================================== -->
+    <button class="fab" id="post-fab" style="display: none;" onclick="openNewPostModal()">
+        <i data-lucide="pen-tool" style="width: 24px; height: 24px;"></i>
+    </button>
+
+    <!-- ==========================================================================
+       Bottom Navigation
+       ========================================================================== -->
+    <nav class="bottom-nav">
+        <div class="nav-item active" id="nav-home" onclick="navigate('home')">
+            <i data-lucide="home"></i>
+            <span>ホーム</span>
+        </div>
+        <div class="nav-item" id="nav-search" onclick="navigate('search')">
+            <i data-lucide="calendar-search"></i>
+            <span>授業検索</span>
+        </div>
+        <div class="nav-item" id="nav-mypage" onclick="navigate('mypage')">
+            <i data-lucide="user"></i>
+            <span>マイページ</span>
+        </div>
+    </nav>
+
+    <!-- ==========================================================================
+       Modals (授業追加, 投稿追加, 大学選択, ニックネーム設定, リプライ)
+       ========================================================================== -->
+    
+    <!-- 1. 大学選択モーダル -->
+    <div class="modal" id="modal-university">
+        <div class="modal-content">
+            <button class="modal-close-btn" onclick="closeModal('modal-university')"><i data-lucide="x"></i></button>
+            <h4 class="modal-title-text">大学を選択する</h4>
+            <div class="form-group">
+                <label for="univ-select-options">在籍している大学</label>
+                <div style="display: flex; flex-direction: column; gap: 8px;" id="univ-list-selection">
+                    <!-- 動的に大学ボタンを生成 -->
+                </div>
+            </div>
+            <div style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 16px;">
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">選択したい大学がない場合は、新しく大学を追加できます。</p>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="new-univ-input" class="input-text" placeholder="大学名を入力 (例: 京都大学)">
+                    <button class="btn btn-primary" onclick="addNewUniversity()">追加</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. 新規授業追加モーダル -->
+    <div class="modal" id="modal-add-course">
+        <div class="modal-content">
+            <button class="modal-close-btn" onclick="closeModal('modal-add-course')"><i data-lucide="x"></i></button>
+            <h4 class="modal-title-text">新規授業を登録する</h4>
+            <form id="add-course-form" onsubmit="saveNewCourse(event)">
+                <div class="form-group">
+                    <label for="new-course-name">授業名 <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="new-course-name" class="input-text" required placeholder="例: 認知科学A">
+                </div>
+                <div class="form-group">
+                    <label for="new-course-prof">教授名 <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="new-course-prof" class="input-text" required placeholder="例: 佐藤 教授">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label for="new-course-day">曜日 <span style="color:var(--danger)">*</span></label>
+                        <select id="new-course-day" class="select-control" required>
+                            <option value="月">月曜日</option>
+                            <option value="火">火曜日</option>
+                            <option value="水">水曜日</option>
+                            <option value="木">木曜日</option>
+                            <option value="金">金曜日</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-course-period">時限 <span style="color:var(--danger)">*</span></label>
+                        <select id="new-course-period" class="select-control" required>
+                            <option value="1">1限</option>
+                            <option value="2">2限</option>
+                            <option value="3">3限</option>
+                            <option value="4">4限</option>
+                            <option value="5">5限</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label for="new-course-dept">学部/学科 <span style="color:var(--danger)">*</span></label>
+                        <input type="text" id="new-course-dept" class="input-text" required placeholder="例: 理学部">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-course-credits">単位数</label>
+                        <input type="number" id="new-course-credits" class="input-text" min="1" max="10" value="2">
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                    <button type="button" class="btn" onclick="closeModal('modal-add-course')">キャンセル</button>
+                    <button type="submit" class="btn btn-primary">授業を登録</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. 新規投稿モーダル -->
+    <div class="modal" id="modal-new-post">
+        <div class="modal-content">
+            <button class="modal-close-btn" onclick="closeModal('modal-new-post')"><i data-lucide="x"></i></button>
+            <h4 class="modal-title-text" id="post-modal-title">新規投稿</h4>
+            <form id="new-post-form" onsubmit="saveNewPost(event)">
+                <div class="form-group">
+                    <label>タグの選択 <span style="color:var(--danger)">*</span></label>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;" id="post-form-tags">
+                        <label style="margin: 0;"><input type="radio" name="post-tag" value="過去問" required style="display:none;"><span class="tag-pill">過去問</span></label>
+                        <label style="margin: 0;"><input type="radio" name="post-tag" value="課題" style="display:none;"><span class="tag-pill">課題</span></label>
+                        <label style="margin: 0;"><input type="radio" name="post-tag" value="テスト対策" style="display:none;"><span class="tag-pill">テスト対策</span></label>
+                        <label style="margin: 0;"><input type="radio" name="post-tag" value="出席" style="display:none;"><span class="tag-pill">出席</span></label>
+                        <label style="margin: 0;"><input type="radio" name="post-tag" value="雑談" style="display:none;"><span class="tag-pill">雑談</span></label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="post-content-input">投稿本文 <span style="color:var(--danger)">*</span></label>
+                    <textarea id="post-content-input" class="textarea-control" rows="5" required placeholder="過去問情報や課題のヒント、出席キーワードなどを共有しよう！匿名なので安心です。"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>ファイルの添付 (画像など)</label>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('post-file-input').click()">
+                            <i data-lucide="image" style="width: 16px; height: 16px;"></i> 画像を選択
+                        </button>
+                        <input type="file" id="post-file-input" style="display: none;" accept="image/*" onchange="handleFileSelect(event)">
+                        <span id="post-file-name" style="font-size: 12px; color: var(--text-muted);">選択されていません</span>
+                    </div>
+                    <div class="attachment-preview-container" id="post-file-preview-wrap">
+                        <img id="post-file-preview" src="" alt="添付画像">
+                        <button type="button" class="attachment-preview-remove" onclick="removeSelectedFile()">&times;</button>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                    <button type="button" class="btn" onclick="closeModal('modal-new-post')">キャンセル</button>
+                    <button type="submit" class="btn btn-primary">投稿する</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 4. 返信(リプライ)モーダル -->
+    <div class="modal" id="modal-reply">
+        <div class="modal-content">
+            <button class="modal-close-btn" onclick="closeModal('modal-reply')"><i data-lucide="x"></i></button>
+            <h4 class="modal-title-text">投稿に返信する</h4>
+            <div id="reply-target-post-preview" style="background: var(--bg-base); padding: 12px; border-radius: var(--radius-sm); margin-bottom: 16px; font-size: 13px;">
+                <!-- 返信対象の親投稿を表示 -->
+            </div>
+            <form id="reply-form" onsubmit="saveReply(event)">
+                <div class="form-group">
+                    <label for="reply-content-input">返信メッセージ <span style="color:var(--danger)">*</span></label>
+                    <textarea id="reply-content-input" class="textarea-control" rows="4" required placeholder="返信を入力してください..."></textarea>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                    <button type="button" class="btn" onclick="closeModal('modal-reply')">キャンセル</button>
+                    <button type="submit" class="btn btn-primary">返信する</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 5. プロフィール編集モーダル -->
+    <div class="modal" id="modal-profile">
+        <div class="modal-content">
+            <button class="modal-close-btn" onclick="closeModal('modal-profile')"><i data-lucide="x"></i></button>
+            <h4 class="modal-title-text">ニックネームの設定</h4>
+            <form id="profile-form" onsubmit="saveProfile(event)">
+                <div class="form-group">
+                    <label for="profile-nickname-input">ニックネーム</label>
+                    <input type="text" id="profile-nickname-input" class="input-text" required placeholder="例: 匿名たろう" maxlength="15">
+                    <span style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 4px;">本名は使用せず、匿名性の高い名前を推奨します。</span>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                    <button type="button" class="btn" onclick="closeModal('modal-profile')">キャンセル</button>
+                    <button type="submit" class="btn btn-primary">保存する</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==========================================================================
+       Javascript (アプリケーション・ロジック)
+       ========================================================================== -->
+    <script>
+        // ==========================================================================
+        // 1. グローバル状態 (State) & ローカルストレージキー
+        // ==========================================================================
+        const STORAGE_KEYS = {
+            UNIVERSITIES: 'unitalk_universities',
+            COURSES: 'unitalk_courses',
+            POSTS: 'unitalk_posts',
+            USER: 'unitalk_user',
+            FAVORITES: 'unitalk_favorites',
+            LIKES: 'unitalk_likes'
+        };
+
+        let state = {
+            universities: [],
+            courses: [],
+            posts: [],
+            favorites: [], // courseIds
+            likes: [], // postIds
+            currentUser: {
+                id: '',
+                nickname: '匿名ユーザー',
+                universityId: '',
+                email: '',
+                isAuthenticated: false
+            },
+            currentView: 'home',
+            selectedUniversityId: '',
+            selectedCourseId: '',
+            searchQuery: '',
+            filterDept: '',
+            filterDay: '',
+            boardFilterTag: 'all',
+            boardSearchQuery: '',
+            
+            // テンポラリオブジェクト
+            tempSelectedFileBase64: null,
+            tempSelectedFileName: null,
+            tempReplyTargetPostId: null
+        };
+
+        // ==========================================================================
+        // 2. 初期シードデータ (アプリ起動時にローカルストレージが空の場合に使用)
+        // ==========================================================================
+        const SEED_UNIVERSITIES = [
+            { id: 'univ-utokyo', name: '東京大学', domain: 'u-tokyo.ac.jp' },
+            { id: 'univ-waseda', name: '早稲田大学', domain: 'waseda.jp' },
+            { id: 'univ-keio', name: '慶應義塾大学', domain: 'keio.jp' }
+        ];
+
+        const SEED_COURSES = [
+            // 東京大学
+            { id: 'course-ut-1', universityId: 'univ-utokyo', name: '認知脳科学', prof: '鈴木 一郎 教授', day: '月', period: '2', dept: '理学部', credits: 2, ratingSum: 18, ratingCount: 4 },
+            { id: 'course-ut-2', universityId: 'univ-utokyo', name: '教養としてのアルゴリズム', prof: '田中 健二 准教授', day: '水', period: '3', dept: '教養学部', credits: 2, ratingSum: 9, ratingCount: 2 },
+            { id: 'course-ut-3', universityId: 'univ-utokyo', name: '日本国憲法', prof: '佐藤 信夫 教授', day: '木', period: '1', dept: '法学部', credits: 2, ratingSum: 14, ratingCount: 3 },
+            
+            // 早稲田大学
+            { id: 'course-wd-1', universityId: 'univ-waseda', name: 'メディアコミュニケーション論', prof: '山田 花子 教授', day: '火', period: '2', dept: '政治経済学部', credits: 2, ratingSum: 15, ratingCount: 3 },
+            { id: 'course-wd-2', universityId: 'univ-waseda', name: 'プログラミング基礎', prof: '高橋 修 教授', day: '金', period: '4', dept: '基幹理工学部', credits: 2, ratingSum: 23, ratingCount: 5 },
+            { id: 'course-wd-3', universityId: 'univ-waseda', name: '近代日本文学史', prof: '渡辺 淳二 教授', day: '水', period: '1', dept: '文学部', credits: 2, ratingSum: 4, ratingCount: 1 }
+        ];
+
+        const SEED_POSTS = [
+            {
+                id: 'post-1',
+                courseId: 'course-ut-1',
+                userId: 'user-dummy-1',
+                nickname: '赤門シケ対',
+                content: '認知脳科学の昨年度テスト問題は、スライドの第3章〜第5章から8割出題されました。特に「視覚野の階層処理」に関する論述は毎年出題されているようです！',
+                tag: '過去問',
+                timestamp: Date.now() - 1000 * 60 * 60 * 24 * 3, // 3日前
+                likesCount: 12,
+                attachment: null,
+                replies: [
+                    { id: 'reply-1-1', nickname: '猫好きの東大生', content: '情報ありがとうございます！論述の文字数はどのくらいでしたか？', timestamp: Date.now() - 1000 * 60 * 60 * 24 * 2 },
+                    { id: 'reply-1-2', nickname: '赤門シケ対', content: '大体400字〜600字程度でした。時間的には少し余裕があるくらいです。', timestamp: Date.now() - 1000 * 60 * 60 * 24 * 1 }
+                ]
+            },
+            {
+                id: 'post-2',
+                courseId: 'course-ut-1',
+                userId: 'user-dummy-2',
+                nickname: '単位ほしい',
+                content: '認知脳科学、今週のレポート課題テーマ「ニューロンモデルの比較」の数式部分がよく分かりません。Hodgkin-Huxleyモデルの理解に役立つ参考URLや解説を持っている親切な方いませんか？',
+                tag: '課題',
+                timestamp: Date.now() - 1000 * 60 * 60 * 12, // 12時間前
+                likesCount: 5,
+                attachment: null,
+                replies: []
+            },
+            {
+                id: 'post-3',
+                courseId: 'course-ut-2',
+                userId: 'user-dummy-3',
+                nickname: '二郎系アルゴリズマー',
+                content: 'アルゴリズム論の中間テスト、ハッシュテーブルの衝突解決（オープンアドレス法 vs チェイン法）について出ました。来週の課題もこれに近いです。',
+                tag: 'テスト対策',
+                timestamp: Date.now() - 1000 * 60 * 60 * 36,
+                likesCount: 8,
+                attachment: null,
+                replies: [
+                    { id: 'reply-3-1', nickname: 'やすだ', content: 'チェイン法の最悪計算量についても言言が必要でしたね。', timestamp: Date.now() - 1000 * 60 * 60 * 20 }
+                ]
+            },
+            {
+                id: 'post-4',
+                courseId: 'course-wd-1',
+                userId: 'user-dummy-4',
+                nickname: 'エンジニア志望',
+                content: 'メディア論の出席ってリアペですよね？今日のキーワードを教えて欲しいです。',
+                tag: '出席',
+                timestamp: Date.now() - 1000 * 60 * 120, // 2時間前
+                likesCount: 3,
+                attachment: null,
+                replies: [
+                    { id: 'reply-4-1', nickname: '早稲田の主', content: '「ポスト真実」でした！', timestamp: Date.now() - 1000 * 60 * 90 },
+                    { id: 'reply-4-2', nickname: 'エンジニア志望', content: '助かりました！ありがとうございます！', timestamp: Date.now() - 1000 * 60 * 60 }
+                ]
+            }
+        ];
+
+        // ==========================================================================
+        // 3. アプリ初期化 & 状態ロード
+        // ==========================================================================
+        function initApp() {
+            // localStorageからデータをロード、無ければシードデータを設定
+            state.universities = loadFromStorage(STORAGE_KEYS.UNIVERSITIES, SEED_UNIVERSITIES);
+            state.courses = loadFromStorage(STORAGE_KEYS.COURSES, SEED_COURSES);
+            state.posts = loadFromStorage(STORAGE_KEYS.POSTS, SEED_POSTS);
+            state.favorites = loadFromStorage(STORAGE_KEYS.FAVORITES, ['course-ut-1', 'course-wd-2']);
+            state.likes = loadFromStorage(STORAGE_KEYS.LIKES, []);
+            
+            // ユーザー情報
+            const defaultUser = {
+                id: 'user-' + Math.random().toString(36).substr(2, 9),
+                nickname: '匿名ゆーざー',
+                universityId: 'univ-utokyo',
+                email: '',
+                isAuthenticated: false
+            };
+            state.currentUser = loadFromStorage(STORAGE_KEYS.USER, defaultUser);
+            state.selectedUniversityId = state.currentUser.universityId || 'univ-utokyo';
+
+            // 初期保存 (シードデータを保存するため)
+            saveToStorage(STORAGE_KEYS.UNIVERSITIES, state.universities);
+            saveToStorage(STORAGE_KEYS.COURSES, state.courses);
+            saveToStorage(STORAGE_KEYS.POSTS, state.posts);
+            saveToStorage(STORAGE_KEYS.USER, state.currentUser);
+            saveToStorage(STORAGE_KEYS.FAVORITES, state.favorites);
+            saveToStorage(STORAGE_KEYS.LIKES, state.likes);
+
+            // ルーター初期化
+            initRouter();
+
+            // UIレンダリング
+            updateHeaderUI();
+            renderDepartmentFilter();
+            renderTimetableGrid();
+            renderCurrentView();
+            
+            // Lucideアイコンの有効化
+            lucide.createIcons();
+            
+            // タグのイベントバインド（新規投稿フォーム内）
+            initNewPostFormTags();
+        }
+
+        // ==========================================================================
+        // 4. データアクセス・ヘルパー
+        // ==========================================================================
+        function loadFromStorage(key, defaultValue) {
+            const data = localStorage.getItem(key);
+            return data ? JSON.parse(data) : defaultValue;
+        }
+
+        function saveToStorage(key, value) {
+            localStorage.setItem(key, JSON.stringify(value));
+        }
+
+        // ==========================================================================
+        // 5. ルーター & ナビゲーション
+        // ==========================================================================
+        function initRouter() {
+            window.addEventListener('popstate', (e) => {
+                if (e.state && e.state.view) {
+                    switchView(e.state.view, e.state.courseId, false);
+                } else {
+                    // ハッシュベースのフォールバック
+                    const hash = window.location.hash.replace('#/', '');
+                    const parts = hash.split('/');
+                    if (parts[0] === 'board' && parts[1]) {
+                        switchView('board', parts[1], false);
+                    } else if (parts[0]) {
+                        switchView(parts[0], null, false);
+                    } else {
+                        switchView('home', null, false);
+                    }
+                }
+            });
+
+            // 初期URLの解析
+            const hash = window.location.hash.replace('#/', '');
+            const parts = hash.split('/');
+            if (parts[0] === 'board' && parts[1]) {
+                state.currentView = 'board';
+                state.selectedCourseId = parts[1];
+            } else if (['home', 'search', 'mypage'].includes(parts[0])) {
+                state.currentView = parts[0];
+            } else {
+                state.currentView = 'home';
+            }
+        }
+
+        function navigate(view, courseId = null) {
+            switchView(view, courseId, true);
+        }
+
+        function switchView(view, courseId = null, pushState = true) {
+            state.currentView = view;
+            if (courseId) state.selectedCourseId = courseId;
+
+            // 履歴への追加
+            if (pushState) {
+                let url = `#/${view}`;
+                if (view === 'board' && courseId) {
+                    url += `/${courseId}`;
+                }
+                window.history.pushState({ view, courseId }, '', url);
+            }
+
+            // ボトムナビのハイライト更新
+            document.querySelectorAll('.bottom-nav .nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            const activeNavId = `nav-${view === 'board' ? 'search' : view}`;
+            const activeNavItem = document.getElementById(activeNavId);
+            if (activeNavItem) activeNavItem.classList.add('active');
+
+            // FABの表示制御 (掲示板詳細画面のみ表示)
+            const fab = document.getElementById('post-fab');
+            if (view === 'board') {
+                fab.style.display = 'flex';
+            } else {
+                fab.style.display = 'none';
+            }
+
+            renderCurrentView();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // ==========================================================================
+        // 6. ビューの描画管理
+        // ==========================================================================
+        function renderCurrentView() {
+            // すべてのビューを一旦非表示に
+            document.querySelectorAll('.view-content').forEach(view => {
+                view.classList.remove('active');
+            });
+
+            const activeViewElement = document.getElementById(`${state.currentView}-view`);
+            if (activeViewElement) activeViewElement.classList.add('active');
+
+            // 各画面のレンダリング処理
+            if (state.currentView === 'home') {
+                renderHomeView();
+            } else if (state.currentView === 'search') {
+                renderSearchView();
+            } else if (state.currentView === 'board') {
+                renderBoardView();
+            } else if (state.currentView === 'mypage') {
+                renderMypageView();
+            }
+            
+            // アイコン再生成
+            lucide.createIcons();
+        }
+
+        // --- 6-1. ヘッダー UI 更新 ---
+        function updateHeaderUI() {
+            const currentUniv = state.universities.find(u => u.id === state.selectedUniversityId);
+            const univText = currentUniv ? currentUniv.name : '大学を選択';
+            document.getElementById('header-univ-name').innerText = univText;
+            document.getElementById('home-hero-univ').innerText = `${univText} 匿名ボード`;
+        }
+
+        // --- 6-2. ホーム画面の描画 ---
+        function renderHomeView() {
+            const currentUnivId = state.selectedUniversityId;
+            const coursesInUniv = state.courses.filter(c => c.universityId === currentUnivId);
+            
+            // 1. トレンド授業 (投稿数が多い順)
+            const trendCourses = coursesInUniv.map(course => {
+                const postsCount = state.posts.filter(p => p.courseId === course.id).length;
+                return { ...course, postsCount };
+            })
+            .sort((a, b) => b.postsCount - a.postsCount)
+            .slice(0, 5);
+
+            const trendContainer = document.getElementById('home-trending-list');
+            trendContainer.innerHTML = '';
+            if (trendCourses.length > 0) {
+                trendCourses.forEach(course => {
+                    const card = createCourseCardHtml(course, `コメント ${course.postsCount}件`);
+                    trendContainer.appendChild(card);
+                });
+            } else {
+                trendContainer.innerHTML = `<div class="empty-state" style="width:100%"><p style="font-size:12px;">まだこの大学には授業が登録されていません。</p></div>`;
+            }
+
+            // 2. お気に入り授業
+            const favCourses = state.courses.filter(c => state.favorites.includes(c.id) && c.universityId === currentUnivId);
+            const favContainer = document.getElementById('home-favorites-list');
+            favContainer.innerHTML = '';
+            if (favCourses.length > 0) {
+                favCourses.forEach(course => {
+                    const rating = course.ratingCount > 0 ? (course.ratingSum / course.ratingCount).toFixed(1) : '評価なし';
+                    const card = createCourseCardHtml(course, `★ ${rating}`);
+                    favContainer.appendChild(card);
+                });
+            } else {
+                favContainer.innerHTML = `
+                    <div class="empty-state" style="padding: 20px; width: 100%; border: 1px dashed var(--border-color); border-radius: var(--radius-md);">
+                        <i data-lucide="bookmark" style="width: 24px; height: 24px; color: var(--text-muted);"></i>
+                        <p style="font-size:11px; margin-top:4px;">お気に入りの授業はありません。検索からピン留めできます。</p>
+                    </div>
+                `;
+            }
+
+            // 3. 最新の投稿 (大学全体から最新5件)
+            const recentPosts = state.posts.filter(p => {
+                const course = state.courses.find(c => c.id === p.courseId);
+                return course && course.universityId === currentUnivId;
+            })
+            .sort((a, b) => b.timestamp - a.timestamp)
+            .slice(0, 5);
+
+            const recentContainer = document.getElementById('home-recent-posts');
+            recentContainer.innerHTML = '';
+            if (recentPosts.length > 0) {
+                recentPosts.forEach(post => {
+                    const course = state.courses.find(c => c.id === post.courseId);
+                    const item = document.createElement('div');
+                    item.className = 'recent-post-item fade-in';
+                    item.onclick = () => navigate('board', post.courseId);
+                    
+                    const timeString = formatTime(post.timestamp);
+                    const tagClass = getTagClass(post.tag);
+                    
+                    item.innerHTML = `
+                        <div class="recent-post-header">
+                            <span class="recent-post-title">${escapeHtml(course.name)}</span>
+                            <span>${timeString}</span>
+                        </div>
+                        <p class="recent-post-content">${escapeHtml(post.content)}</p>
+                        <div class="recent-post-footer">
+                            <span>by ${escapeHtml(post.nickname)}</span>
+                            <span class="badge ${tagClass}">${escapeHtml(post.tag)}</span>
+                        </div>
+                    `;
+                    recentContainer.appendChild(item);
+                });
+            } else {
+                recentContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i data-lucide="message-square" style="width: 32px; height: 32px;"></i>
+                        <p>まだ新しい投稿はありません。授業掲示板から最初のクチコミを投稿してみましょう！</p>
+                    </div>
+                `;
+            }
+        }
+
+        function createCourseCardHtml(course, metaText) {
+            const card = document.createElement('div');
+            card.className = 'course-card fade-in';
+            card.onclick = () => navigate('board', course.id);
+            card.innerHTML = `
+                <div>
+                    <span class="course-card-tag">${escapeHtml(course.dept)}</span>
+                    <h4 class="course-card-title">${escapeHtml(course.name)}</h4>
+                </div>
+                <div class="course-card-meta">
+                    <p style="font-weight: 500; font-size:12px; margin-bottom: 2px;">${escapeHtml(course.prof)}</p>
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+                        <span>${course.day}曜${course.period}限</span>
+                        <span style="font-weight:700; color:var(--primary);">${metaText}</span>
+                    </div>
+                </div>
+            `;
+            return card;
+        }
+
+        // --- 6-3. 時間割・検索画面の描画 ---
+        function renderSearchView() {
+            renderTimetableGrid();
+            handleSearch(); // 検索およびフィルタ結果を描画
+        }
+
+        function renderDepartmentFilter() {
+            const currentUnivId = state.selectedUniversityId;
+            const courses = state.courses.filter(c => c.universityId === currentUnivId);
+            const departments = [...new Set(courses.map(c => c.dept))];
+            
+            const select = document.getElementById('filter-dept');
+            select.innerHTML = '<option value="">学部/学科: すべて</option>';
+            departments.forEach(dept => {
+                const opt = document.createElement('option');
+                opt.value = dept;
+                opt.textContent = dept;
+                select.appendChild(opt);
+            });
+        }
+
+        function renderTimetableGrid() {
+            const currentUnivId = state.selectedUniversityId;
+            const courses = state.courses.filter(c => c.universityId === currentUnivId);
+            
+            const gridBody = document.getElementById('timetable-grid-body');
+            // ヘッダー行以外の要素をリセット
+            const headerCells = gridBody.querySelectorAll('.timetable-header-cell');
+            gridBody.innerHTML = '';
+            gridBody.appendChild(document.createElement('div')); // 左上スペース
+            headerCells.forEach(cell => gridBody.appendChild(cell.cloneNode(true)));
+
+            const days = ['月', '火', '水', '木', '金'];
+            
+            for (let period = 1; period <= 5; period++) {
+                // 1列目: 時限ラベル
+                const timeCell = document.createElement('div');
+                timeCell.className = 'timetable-time-cell';
+                timeCell.innerHTML = `<div>${period}</div><div style="font-size:7px; font-weight:normal;">限</div>`;
+                gridBody.appendChild(timeCell);
+                
+                // 2〜6列目: 各曜日のセル
+                days.forEach(day => {
+                    const cell = document.createElement('div');
+                    
+                    // その時限にある授業を検索
+                    const course = courses.find(c => c.day === day && c.period === String(period));
+                    
+                    if (course) {
+                        cell.className = 'timetable-cell has-course';
+                        cell.innerHTML = `
+                            <span class="timetable-cell-title">${escapeHtml(course.name)}</span>
+                            <span class="timetable-cell-prof">${escapeHtml(course.prof.replace(' 教授','').replace(' 准教授',''))}</span>
+                        `;
+                        cell.onclick = () => navigate('board', course.id);
+                    } else {
+                        cell.className = 'timetable-cell empty';
+                        cell.innerHTML = `<span>+</span>`;
+                        cell.onclick = () => openAddCourseModal(day, period);
+                    }
+                    
+                    gridBody.appendChild(cell);
+                });
+            }
+        }
+
+        function handleSearch() {
+            state.searchQuery = document.getElementById('search-input').value.toLowerCase();
+            state.filterDept = document.getElementById('filter-dept').value;
+            state.filterDay = document.getElementById('filter-day').value;
+
+            const currentUnivId = state.selectedUniversityId;
+            let results = state.courses.filter(c => c.universityId === currentUnivId);
+
+            if (state.searchQuery) {
+                results = results.filter(c => 
+                    c.name.toLowerCase().includes(state.searchQuery) ||
+                    c.prof.toLowerCase().includes(state.searchQuery) ||
+                    c.dept.toLowerCase().includes(state.searchQuery)
+                );
+            }
+
+            if (state.filterDept) {
+                results = results.filter(c => c.dept === state.filterDept);
+            }
+
+            if (state.filterDay) {
+                results = results.filter(c => c.day === state.filterDay);
+            }
+
+            // 件数テキスト更新
+            document.getElementById('results-count-text').innerText = `該当する授業 (${results.length}件)`;
+
+            const resultsContainer = document.getElementById('search-results-container');
+            resultsContainer.innerHTML = '';
+
+            if (results.length > 0) {
+                results.forEach(course => {
+                    const isFav = state.favorites.includes(course.id);
+                    const rating = course.ratingCount > 0 ? (course.ratingSum / course.ratingCount).toFixed(1) : '未評価';
+                    const postsCount = state.posts.filter(p => p.courseId === course.id).length;
+                    
+                    const div = document.createElement('div');
+                    div.className = 'recent-post-item fade-in';
+                    div.style.padding = '14px';
+                    div.onclick = () => navigate('board', course.id);
+                    
+                    div.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                            <div>
+                                <span class="badge badge-primary" style="margin-bottom:6px;">${escapeHtml(course.dept)}</span>
+                                <h4 style="font-size:15px; font-weight:700; margin-bottom:4px;">${escapeHtml(course.name)}</h4>
+                                <p style="font-size:12px; color:var(--text-muted);">${escapeHtml(course.prof)}・${course.credits}単位</p>
+                            </div>
+                            <div style="text-align:right; font-size:11px; color:var(--text-muted);">
+                                <span class="badge" style="margin-bottom:6px;">${course.day}曜${course.period}限</span>
+                                <div style="display:flex; align-items:center; gap:2px; font-weight:700; color:var(--warning); margin-top:2px;">
+                                    <i data-lucide="star" style="width:12px; height:12px; fill:var(--warning)"></i>
+                                    <span>${rating}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding-top:10px; border-top:1px solid var(--border-color); font-size:11px; color:var(--text-muted);">
+                            <span><i data-lucide="message-square" style="width:12px; height:12px; display:inline; vertical-align:middle;"></i> クチコミ ${postsCount}件</span>
+                            <span style="color: ${isFav ? 'var(--danger)' : 'var(--text-muted)'}"><i data-lucide="heart" style="width:12px; height:12px; display:inline; vertical-align:middle; fill:${isFav ? 'var(--danger)' : 'none'}"></i> ${isFav ? 'お気に入り中' : 'お気に入りに追加'}</span>
+                        </div>
+                    `;
+                    resultsContainer.appendChild(div);
+                });
+            } else {
+                resultsContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i data-lucide="search-slash" style="width: 36px; height: 36px;"></i>
+                        <p>条件に一致する授業が見つかりませんでした。</p>
+                    </div>
+                `;
+            }
+            lucide.createIcons();
+        }
+
+        // --- 6-4. 授業掲示板画面の描画 ---
+        function renderBoardView() {
+            const course = state.courses.find(c => c.id === state.selectedCourseId);
+            if (!course) {
+                navigate('home');
+                return;
+            }
+
+            // 掲示板ヘッダー
+            const headerContainer = document.getElementById('board-header-container');
+            const isFav = state.favorites.includes(course.id);
+            const rating = course.ratingCount > 0 ? (course.ratingSum / course.ratingCount).toFixed(1) : 'なし';
+            
+            // 簡易レーティング星作成
+            let starsHtml = '';
+            const floorRating = Math.round(course.ratingCount > 0 ? course.ratingSum / course.ratingCount : 0);
+            for(let i=1; i<=5; i++) {
+                starsHtml += `<i data-lucide="star" style="width:14px; height:14px; ${i <= floorRating ? 'fill:var(--warning)' : ''}"></i>`;
+            }
+
+            headerContainer.innerHTML = `
+                <div class="board-header">
+                    <div class="board-header-top">
+                        <div>
+                            <span class="badge badge-primary" style="margin-bottom: 6px;">${escapeHtml(course.dept)}</span>
+                            <h2 class="board-title">${escapeHtml(course.name)}</h2>
+                        </div>
+                        <button class="board-fav-btn ${isFav ? 'active' : ''}" onclick="toggleFavorite('${course.id}')" title="お気に入り登録">
+                            <i data-lucide="heart" style="width:24px; height:24px; ${isFav ? 'fill:var(--danger)' : ''}"></i>
+                        </button>
+                    </div>
+                    <div class="board-meta-grid">
+                        <div class="board-meta-item">
+                            <i data-lucide="user" style="width:14px; height:14px;"></i>
+                            <span>担当: ${escapeHtml(course.prof)}</span>
+                        </div>
+                        <div class="board-meta-item">
+                            <i data-lucide="calendar" style="width:14px; height:14px;"></i>
+                            <span>時間割: ${course.day}曜${course.period}限</span>
+                        </div>
+                        <div class="board-meta-item">
+                            <i data-lucide="award" style="width:14px; height:14px;"></i>
+                            <span>単位数: ${course.credits}単位</span>
+                        </div>
+                        <div class="board-meta-item">
+                            <i data-lucide="graduation-cap" style="width:14px; height:14px;"></i>
+                            <span>評価数: ${course.ratingCount}件</span>
+                        </div>
+                    </div>
+                    <div class="board-rating-wrap">
+                        <span style="font-size:12px; font-weight:600; color:var(--text-muted);">授業評価:</span>
+                        <div class="rating-stars">${starsHtml}</div>
+                        <span class="rating-num">${rating}</span>
+                        <button class="btn btn-secondary" style="padding: 4px 8px; font-size:10px; margin-left:auto;" onclick="openRatingPrompt()">授業を評価</button>
+                    </div>
+                </div>
+            `;
+
+            renderBoardPosts();
+        }
+
+        function renderBoardPosts() {
+            let posts = state.posts.filter(p => p.courseId === state.selectedCourseId);
+
+            // タグフィルター
+            if (state.boardFilterTag !== 'all') {
+                posts = posts.filter(p => p.tag === state.boardFilterTag);
+            }
+
+            // スレッド内キーワード検索
+            if (state.boardSearchQuery) {
+                const query = state.boardSearchQuery.toLowerCase();
+                posts = posts.filter(p => 
+                    p.content.toLowerCase().includes(query) ||
+                    p.nickname.toLowerCase().includes(query)
+                );
+            }
+
+            // 日時降順
+            posts.sort((a, b) => b.timestamp - a.timestamp);
+
+            const container = document.getElementById('board-posts-container');
+            container.innerHTML = '';
+
+            if (posts.length > 0) {
+                posts.forEach(post => {
+                    const isLiked = state.likes.includes(post.id);
+                    const tagClass = getTagClass(post.tag);
+                    const timeString = formatTime(post.timestamp);
+                    
+                    const card = document.createElement('div');
+                    card.className = 'post-card fade-in';
+                    card.id = `post-${post.id}`;
+                    
+                    // 添付ファイル（画像）の描画
+                    let attachmentHtml = '';
+                    if (post.attachment) {
+                        attachmentHtml = `
+                            <div class="post-attachment" onclick="viewLargeImage('${post.attachment}')">
+                                <img src="${post.attachment}" alt="添付画像">
+                            </div>
+                        `;
+                    }
+
+                    // リプライの描画
+                    let repliesHtml = '';
+                    if (post.replies && post.replies.length > 0) {
+                        repliesHtml = '<div class="replies-container">';
+                        post.replies.forEach(reply => {
+                            repliesHtml += `
+                                <div class="reply-item scale-up">
+                                    <div class="reply-header">
+                                        <span>${escapeHtml(reply.nickname)}</span>
+                                        <span>${formatTime(reply.timestamp)}</span>
+                                    </div>
+                                    <div>${escapeHtml(reply.content)}</div>
+                                </div>
+                            `;
+                        });
+                        repliesHtml += '</div>';
+                    }
+
+                    card.innerHTML = `
+                        <span class="badge ${tagClass} post-tag-badge">${escapeHtml(post.tag)}</span>
+                        <div class="post-header">
+                            <span class="post-user">${escapeHtml(post.nickname)}</span>
+                            <span class="post-time">${timeString}</span>
+                        </div>
+                        <div class="post-content">${escapeHtml(post.content)}</div>
+                        ${attachmentHtml}
+                        <div class="post-actions">
+                            <button class="post-action-btn ${isLiked ? 'liked' : ''}" onclick="toggleLike('${post.id}')">
+                                <i data-lucide="thumbs-up" style="width:14px; height:14px;"></i>
+                                <span>参考になった (${post.likesCount || 0})</span>
+                            </button>
+                            <button class="post-action-btn" onclick="openReplyModal('${post.id}')">
+                                <i data-lucide="message-square" style="width:14px; height:14px;"></i>
+                                <span>返信する (${post.replies ? post.replies.length : 0})</span>
+                            </button>
+                        </div>
+                        ${repliesHtml}
+                    `;
+                    container.appendChild(card);
+                });
+            } else {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i data-lucide="message-square-dashed" style="width: 40px; height: 40px;"></i>
+                        <p>このカテゴリの投稿はまだありません。<br>右下のペンボタンから最初の投稿をしてみましょう！</p>
+                    </div>
+                `;
+            }
+            lucide.createIcons();
+        }
+
+        function filterBoardTag(tag) {
+            state.boardFilterTag = tag;
+            document.querySelectorAll('#board-tag-scroll .tag-pill').forEach(pill => {
+                if (pill.innerText === tag || (tag === 'all' && pill.innerText === 'すべて')) {
+                    pill.classList.add('active');
+                } else {
+                    pill.classList.remove('active');
+                }
+            });
+            renderBoardPosts();
+        }
+
+        function handleBoardSearch() {
+            state.boardSearchQuery = document.getElementById('board-search-input').value;
+            renderBoardPosts();
+        }
+
+        // --- 6-5. マイページ画面の描画 ---
+        function renderMypageView() {
+            // プロフィール情報
+            document.getElementById('mypage-nickname-text').innerText = state.currentUser.nickname;
+            document.getElementById('mypage-avatar').innerText = state.currentUser.nickname.charAt(0);
+            
+            const currentUniv = state.universities.find(u => u.id === state.selectedUniversityId);
+            document.getElementById('mypage-univ-name').innerText = currentUniv ? currentUniv.name : '未設定の大学';
+
+            // 認証ステータスの描画
+            const authContainer = document.getElementById('auth-status-container');
+            if (state.currentUser.isAuthenticated) {
+                authContainer.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:10px; color:var(--success); font-weight:700; font-size:14px;">
+                        <i data-lucide="check-circle" style="width:20px; height:20px;"></i>
+                        <span>学生認証済み (${escapeHtml(state.currentUser.email)})</span>
+                    </div>
+                    <p style="font-size:11px; color:var(--text-muted); margin-top:6px;">この大学の掲示板への書き込み権限が付与されています。</p>
+                `;
+            } else {
+                authContainer.innerHTML = `
+                    <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">大学ドメインのメールアドレスで認証すると、信頼バッジが付き、投稿の信頼性が向上します。</p>
+                    <form onsubmit="handleDummyAuth(event)" style="display:flex; flex-direction:column; gap:8px;">
+                        <div style="display:flex; gap:8px;">
+                            <input type="email" id="auth-email-input" class="input-text" style="font-size:12px; padding:8px 12px;" placeholder="例: student@${currentUniv ? currentUniv.domain : 'example.ac.jp'}" required>
+                            <button type="submit" class="btn btn-primary" style="font-size:12px; padding:8px 14px;">認証送信</button>
+                        </div>
+                    </form>
+                `;
+            }
+
+            // 自分の投稿履歴
+            const myPosts = state.posts.filter(p => p.userId === state.currentUser.id);
+            const myPostsContainer = document.getElementById('mypage-my-posts');
+            myPostsContainer.innerHTML = '';
+
+            if (myPosts.length > 0) {
+                myPosts.forEach(post => {
+                    const course = state.courses.find(c => c.id === post.courseId);
+                    const item = document.createElement('div');
+                    item.className = 'recent-post-item fade-in';
+                    item.onclick = () => navigate('board', post.courseId);
+                    
+                    item.innerHTML = `
+                        <div class="recent-post-header">
+                            <span class="recent-post-title">${escapeHtml(course ? course.name : '削除された授業')}</span>
+                            <span>${formatTime(post.timestamp)}</span>
+                        </div>
+                        <p class="recent-post-content">${escapeHtml(post.content)}</p>
+                        <div class="recent-post-footer">
+                            <span>参考になった (${post.likesCount || 0})</span>
+                            <span class="badge ${getTagClass(post.tag)}">${escapeHtml(post.tag)}</span>
+                        </div>
+                    `;
+                    myPostsContainer.appendChild(item);
+                });
+            } else {
+                myPostsContainer.innerHTML = `
+                    <div class="empty-state" style="padding: 20px;">
+                        <p style="font-size:12px;">自分が投稿した履歴はありません。</p>
+                    </div>
+                `;
+            }
+            lucide.createIcons();
+        }
+
+        // ==========================================================================
+        // 7. インタラクション & 各種処理
+        // ==========================================================================
+
+        // --- 7-1. 大学の選択・切り替え・追加 ---
+        function openUniversityModal() {
+            const listContainer = document.getElementById('univ-list-selection');
+            listContainer.innerHTML = '';
+            
+            state.universities.forEach(univ => {
+                const isSelected = univ.id === state.selectedUniversityId;
+                const btn = document.createElement('button');
+                btn.className = `btn ${isSelected ? 'btn-primary' : ''}`;
+                btn.style.justifyContent = 'space-between';
+                btn.style.width = '100%';
+                btn.innerHTML = `
+                    <span>${escapeHtml(univ.name)}</span>
+                    <span style="font-size:10px; opacity:0.8;">@${escapeHtml(univ.domain)}</span>
+                `;
+                btn.onclick = () => {
+                    selectUniversity(univ.id);
+                    closeModal('modal-university');
+                };
+                listContainer.appendChild(btn);
+            });
+            
+            openModal('modal-university');
+        }
+
+        function selectUniversity(univId) {
+            state.selectedUniversityId = univId;
+            state.currentUser.universityId = univId;
+            
+            // 認証ドメインが合わなくなった場合は未認証にする (デモ用簡易)
+            const univ = state.universities.find(u => u.id === univId);
+            if (state.currentUser.isAuthenticated && state.currentUser.email && !state.currentUser.email.endsWith(univ.domain)) {
+                state.currentUser.isAuthenticated = false;
+                state.currentUser.email = '';
+            }
+
+            saveToStorage(STORAGE_KEYS.USER, state.currentUser);
+            
+            updateHeaderUI();
+            renderDepartmentFilter();
+            
+            // 検索とホームをリフレッシュ
+            if (state.currentView === 'home') {
+                renderHomeView();
+            } else if (state.currentView === 'search') {
+                renderSearchView();
+            } else if (state.currentView === 'board') {
+                // 掲示板詳細中に大学を変えたらホームへ戻す
+                navigate('home');
+            }
+        }
+
+        function addNewUniversity() {
+            const input = document.getElementById('new-univ-input');
+            const name = input.value.trim();
+            if (!name) return;
+
+            // 簡易ドメイン生成 (例: "京都大学" -> "kyoto-u.ac.jp")
+            const pyName = name.replace('大学','').toLowerCase();
+            const domain = (pyName === '京都' ? 'kyoto-u' : pyName) + '.ac.jp';
+            
+            const newUniv = {
+                id: 'univ-' + Math.random().toString(36).substr(2, 9),
+                name: name,
+                domain: domain
+            };
+
+            state.universities.push(newUniv);
+            saveToStorage(STORAGE_KEYS.UNIVERSITIES, state.universities);
+            
+            input.value = '';
+            selectUniversity(newUniv.id);
+            closeModal('modal-university');
+            alert(`大学「${name}」を追加しました。`);
+        }
+
+        // --- 7-2. 新規授業の追加 ---
+        function openAddCourseModal(day = '月', period = 1) {
+            document.getElementById('new-course-day').value = day;
+            document.getElementById('new-course-period').value = String(period);
+            openModal('modal-add-course');
+        }
+
+        function saveNewCourse(event) {
+            event.preventDefault();
+            const name = document.getElementById('new-course-name').value.trim();
+            const prof = document.getElementById('new-course-prof').value.trim();
+            const day = document.getElementById('new-course-day').value;
+            const period = document.getElementById('new-course-period').value;
+            const dept = document.getElementById('new-course-dept').value.trim();
+            const credits = parseInt(document.getElementById('new-course-credits').value) || 2;
+
+            const currentUnivId = state.selectedUniversityId;
+
+            // バリデーション: 重複チェック (同じコマにすでに登録がないか)
+            const duplicate = state.courses.find(c => 
+                c.universityId === currentUnivId && c.day === day && c.period === period
+            );
+            if (duplicate) {
+                alert(`警告: すでに「${duplicate.name}」が同じ曜日・時限に登録されています。`);
+                return;
+            }
+
+            const newCourse = {
+                id: 'course-' + Math.random().toString(36).substr(2, 9),
+                universityId: currentUnivId,
+                name,
+                prof: prof + ' 教授',
+                day,
+                period,
+                dept,
+                credits,
+                ratingSum: 0,
+                ratingCount: 0
+            };
+
+            state.courses.push(newCourse);
+            saveToStorage(STORAGE_KEYS.COURSES, state.courses);
+
+            document.getElementById('add-course-form').reset();
+            closeModal('modal-add-course');
+
+            renderDepartmentFilter();
+            if (state.currentView === 'search') {
+                renderSearchView();
+            } else {
+                navigate('search');
+            }
+
+            // 新しく追加した授業掲示板へ遷移
+            navigate('board', newCourse.id);
+        }
+
+        // --- 7-3. 新規投稿 (画像プレビュー処理含む) ---
+        function openNewPostModal() {
+            const course = state.courses.find(c => c.id === state.selectedCourseId);
+            document.getElementById('post-modal-title').innerText = `「${course.name}」へ投稿する`;
+            removeSelectedFile(); // 前回の添付クリア
+            openModal('modal-new-post');
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (!file.type.startsWith('image/')) {
+                alert('画像ファイルを選択してください。');
+                return;
+            }
+
+            // 容量チェック (localStorage上限対策として、小さめにする)
+            if (file.size > 800 * 1024) { // 800KB
+                alert('ファイルサイズが大きすぎます。800KB以下の画像を選択してください。');
+                return;
+            }
+
+            state.tempSelectedFileName = file.name;
+            document.getElementById('post-file-name').innerText = file.name;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                state.tempSelectedFileBase64 = evt.target.result;
+                const previewImg = document.getElementById('post-file-preview');
+                previewImg.src = evt.target.result;
+                document.getElementById('post-file-preview-wrap').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeSelectedFile() {
+            state.tempSelectedFileBase64 = null;
+            state.tempSelectedFileName = null;
+            document.getElementById('post-file-input').value = '';
+            document.getElementById('post-file-name').innerText = '選択されていません';
+            document.getElementById('post-file-preview-wrap').style.display = 'none';
+        }
+
+        function initNewPostFormTags() {
+            const labels = document.querySelectorAll('#post-form-tags label');
+            labels.forEach(label => {
+                const radio = label.querySelector('input');
+                const span = label.querySelector('.tag-pill');
+                
+                radio.addEventListener('change', () => {
+                    labels.forEach(l => l.querySelector('.tag-pill').classList.remove('active'));
+                    if (radio.checked) {
+                        span.classList.add('active');
+                    }
+                });
+            });
+        }
+
+        function saveNewPost(event) {
+            event.preventDefault();
+            const checkedRadio = document.querySelector('input[name="post-tag"]:checked');
+            if (!checkedRadio) {
+                alert('タグを選択してください。');
+                return;
+            }
+
+            const tag = checkedRadio.value;
+            const content = document.getElementById('post-content-input').value.trim();
+
+            if (!content) return;
+
+            const newPost = {
+                id: 'post-' + Math.random().toString(36).substr(2, 9),
+                courseId: state.selectedCourseId,
+                userId: state.currentUser.id,
+                nickname: state.currentUser.nickname,
+                content: content,
+                tag: tag,
+                timestamp: Date.now(),
+                likesCount: 0,
+                attachment: state.tempSelectedFileBase64,
+                replies: []
+            };
+
+            state.posts.push(newPost);
+            saveToStorage(STORAGE_KEYS.POSTS, state.posts);
+
+            // フォームリセット
+            document.getElementById('new-post-form').reset();
+            document.querySelectorAll('#post-form-tags .tag-pill').forEach(p => p.classList.remove('active'));
+            removeSelectedFile();
+
+            closeModal('modal-new-post');
+
+            // 掲示板ビューを再描画
+            renderBoardPosts();
+        }
+
+        // --- 7-4. いいね機能 ---
+        function toggleLike(postId) {
+            const postIndex = state.posts.findIndex(p => p.id === postId);
+            if (postIndex === -1) return;
+
+            const likeIndex = state.likes.indexOf(postId);
+            if (likeIndex === -1) {
+                // いいね！
+                state.likes.push(postId);
+                state.posts[postIndex].likesCount = (state.posts[postIndex].likesCount || 0) + 1;
+            } else {
+                // いいね解除
+                state.likes.splice(likeIndex, 1);
+                state.posts[postIndex].likesCount = Math.max(0, (state.posts[postIndex].likesCount || 1) - 1);
+            }
+
+            saveToStorage(STORAGE_KEYS.LIKES, state.likes);
+            saveToStorage(STORAGE_KEYS.POSTS, state.posts);
+
+            // 部分描画の代わりにリスト更新
+            renderBoardPosts();
+        }
+
+        // --- 7-5. お気に入り登録 ---
+        function toggleFavorite(courseId) {
+            const index = state.favorites.indexOf(courseId);
+            if (index === -1) {
+                state.favorites.push(courseId);
+            } else {
+                state.favorites.splice(index, 1);
+            }
+            saveToStorage(STORAGE_KEYS.FAVORITES, state.favorites);
+
+            // ボードヘッダー再描画
+            renderBoardView();
+        }
+
+        // --- 7-6. リプライ(返信)機能 ---
+        function openReplyModal(postId) {
+            const post = state.posts.find(p => p.id === postId);
+            if (!post) return;
+
+            state.tempReplyTargetPostId = postId;
+
+            const preview = document.getElementById('reply-target-post-preview');
+            preview.innerHTML = `
+                <div style="font-weight:700; margin-bottom:4px; color:var(--text-muted); font-size:11px;">
+                    ${escapeHtml(post.nickname)} の投稿への返信:
+                </div>
+                <div style="display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">
+                    ${escapeHtml(post.content)}
+                </div>
+            `;
+
+            document.getElementById('reply-content-input').value = '';
+            openModal('modal-reply');
+        }
+
+        function saveReply(event) {
+            event.preventDefault();
+            const content = document.getElementById('reply-content-input').value.trim();
+            if (!content) return;
+
+            const postIndex = state.posts.findIndex(p => p.id === state.tempReplyTargetPostId);
+            if (postIndex === -1) return;
+
+            const newReply = {
+                id: 'reply-' + Math.random().toString(36).substr(2, 9),
+                nickname: state.currentUser.nickname,
+                content: content,
+                timestamp: Date.now()
+            };
+
+            if (!state.posts[postIndex].replies) {
+                state.posts[postIndex].replies = [];
+            }
+            state.posts[postIndex].replies.push(newReply);
+            
+            saveToStorage(STORAGE_KEYS.POSTS, state.posts);
+            
+            closeModal('modal-reply');
+            state.tempReplyTargetPostId = null;
+
+            // 掲示板リロード
+            renderBoardPosts();
+        }
+
+        // --- 7-7. 授業評価レーティング機能 ---
+        function openRatingPrompt() {
+            const scoreStr = prompt("この授業の評価を1〜5の数値で入力してください（1:最悪、5:最高）", "4");
+            if (scoreStr === null) return; // キャンセル
+
+            const score = parseInt(scoreStr);
+            if (isNaN(score) || score < 1 || score > 5) {
+                alert("1から5の数値を入力してください。");
+                return;
+            }
+
+            const courseIndex = state.courses.findIndex(c => c.id === state.selectedCourseId);
+            if (courseIndex === -1) return;
+
+            const course = state.courses[courseIndex];
+            course.ratingSum = (course.ratingSum || 0) + score;
+            course.ratingCount = (course.ratingCount || 0) + 1;
+
+            saveToStorage(STORAGE_KEYS.COURSES, state.courses);
+            
+            renderBoardView(); // ヘッダーをリフレッシュ
+            alert("授業評価を登録しました。ご協力ありがとうございました！");
+        }
+
+        // --- 7-8. プロフィール設定 ---
+        function openProfileEditModal() {
+            document.getElementById('profile-nickname-input').value = state.currentUser.nickname;
+            openModal('modal-profile');
+        }
+
+        function saveProfile(event) {
+            event.preventDefault();
+            const nickname = document.getElementById('profile-nickname-input').value.trim();
+            if (!nickname) return;
+
+            state.currentUser.nickname = nickname;
+            saveToStorage(STORAGE_KEYS.USER, state.currentUser);
+
+            closeModal('modal-profile');
+            renderMypageView();
+        }
+
+        // --- 7-9. 簡易大学認証 (デモ用) ---
+        function handleDummyAuth(event) {
+            event.preventDefault();
+            const email = document.getElementById('auth-email-input').value.trim();
+            const currentUniv = state.universities.find(u => u.id === state.selectedUniversityId);
+            
+            if (!currentUniv) return;
+
+            // ドメインチェック
+            if (!email.endsWith(currentUniv.domain)) {
+                alert(`エラー: この大学の認証には「@${currentUniv.domain}」で終わるメールアドレスを入力してください。`);
+                return;
+            }
+
+            // ダミー認証プロセスのシミュレート
+            const code = prompt("認証メールを送信しました！メールに記載されている4桁のコードを入力してください。(ヒント: 1234)", "");
+            if (code === "1234") {
+                state.currentUser.isAuthenticated = true;
+                state.currentUser.email = email;
+                saveToStorage(STORAGE_KEYS.USER, state.currentUser);
+                renderMypageView();
+                alert("大学認証に成功しました！アカウントに学生認証バッジが付与されました。");
+            } else if (code !== null) {
+                alert("コードが正しくありません。");
+            }
+        }
+
+        // --- 7-10. 添付画像の拡大表示 (LightBox風) ---
+        function viewLargeImage(base64Url) {
+            const overlay = document.createElement('div');
+            overlay.style.position = 'fixed';
+            overlay.style.top = 0;
+            overlay.style.left = 0;
+            overlay.style.width = '100%';
+            overlay.style.height = '100%';
+            overlay.style.backgroundColor = 'rgba(0,0,0,0.85)';
+            overlay.style.backdropFilter = 'blur(4px)';
+            overlay.style.zIndex = 2000;
+            overlay.style.display = 'flex';
+            overlay.style.alignItems = 'center';
+            overlay.style.justifyContent = 'center';
+            overlay.onclick = () => document.body.removeChild(overlay);
+
+            const img = document.createElement('img');
+            img.src = base64Url;
+            img.style.maxWidth = '90%';
+            img.style.maxHeight = '90%';
+            img.style.borderRadius = '8px';
+            img.style.boxShadow = '0 10px 25px rgba(0,0,0,0.5)';
+            
+            overlay.appendChild(img);
+            document.body.appendChild(overlay);
+        }
+
+        // ==========================================================================
+        // 8. ユーティリティ・ヘルパー関数
+        // ==========================================================================
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) modal.classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) modal.classList.remove('active');
+        }
+
+        function formatTime(timestamp) {
+            const diffMs = Date.now() - timestamp;
+            const diffMins = Math.floor(diffMs / (1000 * 60));
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+            if (diffMins < 1) return 'たった今';
+            if (diffMins < 60) return `${diffMins}分前`;
+            if (diffHours < 24) return `${diffHours}時間前`;
+            if (diffDays < 7) return `${diffDays}日前`;
+            
+            const date = new Date(timestamp);
+            return `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        }
+
+        function getTagClass(tag) {
+            // スタイルクラスのマッピング
+            const mapping = {
+                '過去問': 'tag-past-exams',
+                '課題': 'tag-assignments',
+                'テスト対策': 'tag-exam-prep',
+                '出席': 'tag-attendance',
+                '雑談': 'tag-chat'
+            };
+            return mapping[tag] || '';
+        }
+
+        // CSSに動的タグカラーを追加
+        const style = document.createElement('style');
+        style.innerHTML = `
+            .tag-past-exams { background-color: rgba(37, 99, 235, 0.1) !important; color: #2563eb !important; border: 1px solid rgba(37, 99, 235, 0.2); }
+            .tag-assignments { background-color: rgba(16, 185, 129, 0.1) !important; color: #10b981 !important; border: 1px solid rgba(16, 185, 129, 0.2); }
+            .tag-exam-prep { background-color: rgba(245, 158, 11, 0.1) !important; color: #d97706 !important; border: 1px solid rgba(245, 158, 11, 0.2); }
+            .tag-attendance { background-color: rgba(239, 68, 68, 0.1) !important; color: #ef4444 !important; border: 1px solid rgba(239, 68, 68, 0.2); }
+            .tag-chat { background-color: rgba(100, 116, 139, 0.1) !important; color: #475569 !important; border: 1px solid rgba(100, 116, 139, 0.2); }
+        `;
+        document.head.appendChild(style);
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // ページロード完了時に起動
+        window.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>

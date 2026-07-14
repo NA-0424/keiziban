@@ -151,6 +151,11 @@
         .btn:active {
             transform: scale(0.96);
         }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
         .btn-primary {
             background-color: var(--primary);
             color: #fff;
@@ -180,16 +185,6 @@
         }
         .btn-icon:hover {
             background: var(--bg-base);
-        }
-        .btn-text {
-            background: none;
-            border: none;
-            color: var(--primary);
-            font-weight: 600;
-            font-size: 14px;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
         }
 
         /* バッジ */
@@ -1037,7 +1032,7 @@
             </div>
             <div class="univ-selector-wrap" onclick="openUniversityModal()">
                 <i data-lucide="graduation-cap" style="width:16px; height:16px;"></i>
-                <span id="header-univ-name">大学を選択</span>
+                <span id="header-univ-name">読み込み中...</span>
                 <i data-lucide="chevron-down" style="width:14px; height:14px;"></i>
             </div>
         </div>
@@ -1051,8 +1046,8 @@
         <!-- --- 6-1. ホーム画面 --- -->
         <div id="home-view" class="view-content fade-in">
             <div class="hero-banner">
-                <h2 class="hero-title" id="home-hero-univ">大学匿名ボードへようこそ</h2>
-                <p class="hero-desc">テスト対策、過去問、課題、授業のクチコミを共有して効率よく学生生活を乗り切ろう！</p>
+                <h2 class="hero-title" id="home-hero-univ">大学匿名ボード</h2>
+                <p class="hero-desc">テスト対策、過去問、課題などを共有できます</p>
             </div>
             
             <div class="section-header">
@@ -1372,16 +1367,55 @@
     </div>
 
     <!-- ==========================================================================
-       Javascript (アプリケーション・ロジック)
+       Javascript (Firebase SDK & アプリケーション・ロジック)
        ========================================================================== -->
-    <script>
+    <script type="module">
+        // Firebase modules import
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { 
+            getFirestore, 
+            collection, 
+            doc, 
+            addDoc, 
+            getDocs, 
+            setDoc, 
+            updateDoc, 
+            increment, 
+            arrayUnion, 
+            query, 
+            where, 
+            orderBy, 
+            onSnapshot,
+            serverTimestamp
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { 
+            getStorage, 
+            ref, 
+            uploadBytes, 
+            getDownloadURL 
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+
+        // ==========================================================================
+        // Firebase Config & Initialize
+        // ==========================================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyCrSq1huam4dVCngYXUvGpKecdzX6ECLKE",
+            authDomain: "university-85a6c.firebaseapp.com",
+            projectId: "university-85a6c",
+            storageBucket: "university-85a6c.firebasestorage.app",
+            messagingSenderId: "365325156100",
+            appId: "1:365325156100:web:314ac1187c65377afd5a51",
+            measurementId: "G-CWR3EGDX1E"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+
         // ==========================================================================
         // 1. グローバル状態 (State) & ローカルストレージキー
         // ==========================================================================
         const STORAGE_KEYS = {
-            UNIVERSITIES: 'unitalk_universities',
-            COURSES: 'unitalk_courses',
-            POSTS: 'unitalk_posts',
             USER: 'unitalk_user',
             FAVORITES: 'unitalk_favorites',
             LIKES: 'unitalk_likes'
@@ -1391,8 +1425,8 @@
             universities: [],
             courses: [],
             posts: [],
-            favorites: [], // courseIds
-            likes: [], // postIds
+            favorites: [], // courseIds (ローカル保存)
+            likes: [], // postIds (ローカル保存)
             currentUser: {
                 id: '',
                 nickname: '匿名ユーザー',
@@ -1410,13 +1444,13 @@
             boardSearchQuery: '',
             
             // テンポラリオブジェクト
+            tempSelectedFile: null,
             tempSelectedFileBase64: null,
-            tempSelectedFileName: null,
             tempReplyTargetPostId: null
         };
 
         // ==========================================================================
-        // 2. 初期シードデータ (アプリ起動時にローカルストレージが空の場合に使用)
+        // 2. 初期シードデータ (Firestoreが空の場合に初回書き込みされる)
         // ==========================================================================
         const SEED_UNIVERSITIES = [
             { id: 'univ-utokyo', name: '東京大学', domain: 'u-tokyo.ac.jp' },
@@ -1475,7 +1509,7 @@
                 likesCount: 8,
                 attachment: null,
                 replies: [
-                    { id: 'reply-3-1', nickname: 'やすだ', content: 'チェイン法の最悪計算量についても言言が必要でしたね。', timestamp: Date.now() - 1000 * 60 * 60 * 20 }
+                    { id: 'reply-3-1', nickname: 'やすだ', content: 'チェイン法の最悪計算量についても言及が必要でしたね。', timestamp: Date.now() - 1000 * 60 * 60 * 20 }
                 ]
             },
             {
@@ -1498,15 +1532,11 @@
         // ==========================================================================
         // 3. アプリ初期化 & 状態ロード
         // ==========================================================================
-        function initApp() {
-            // localStorageからデータをロード、無ければシードデータを設定
-            state.universities = loadFromStorage(STORAGE_KEYS.UNIVERSITIES, SEED_UNIVERSITIES);
-            state.courses = loadFromStorage(STORAGE_KEYS.COURSES, SEED_COURSES);
-            state.posts = loadFromStorage(STORAGE_KEYS.POSTS, SEED_POSTS);
-            state.favorites = loadFromStorage(STORAGE_KEYS.FAVORITES, ['course-ut-1', 'course-wd-2']);
+        async function initApp() {
+            // LocalStorage からローカル固有の状態をロード
+            state.favorites = loadFromStorage(STORAGE_KEYS.FAVORITES, ['course-ut-1']);
             state.likes = loadFromStorage(STORAGE_KEYS.LIKES, []);
             
-            // ユーザー情報
             const defaultUser = {
                 id: 'user-' + Math.random().toString(36).substr(2, 9),
                 nickname: '匿名ゆーざー',
@@ -1517,32 +1547,104 @@
             state.currentUser = loadFromStorage(STORAGE_KEYS.USER, defaultUser);
             state.selectedUniversityId = state.currentUser.universityId || 'univ-utokyo';
 
-            // 初期保存 (シードデータを保存するため)
-            saveToStorage(STORAGE_KEYS.UNIVERSITIES, state.universities);
-            saveToStorage(STORAGE_KEYS.COURSES, state.courses);
-            saveToStorage(STORAGE_KEYS.POSTS, state.posts);
-            saveToStorage(STORAGE_KEYS.USER, state.currentUser);
-            saveToStorage(STORAGE_KEYS.FAVORITES, state.favorites);
-            saveToStorage(STORAGE_KEYS.LIKES, state.likes);
+            // Firestore にシードデータが存在しない場合は書き込む
+            try {
+                await checkAndSeedFirestore();
+            } catch (err) {
+                console.error("Firestore seeding failed:", err);
+            }
+
+            // Firebase から全大学データをロード
+            await loadUniversities();
 
             // ルーター初期化
             initRouter();
 
-            // UIレンダリング
+            // UIロード
             updateHeaderUI();
-            renderDepartmentFilter();
-            renderTimetableGrid();
-            renderCurrentView();
             
+            // 選択された大学の授業をリアルタイム監視開始
+            subscribeCourses(state.selectedUniversityId);
+            
+            // ビューの初期レンダリング
+            renderCurrentView();
+
             // Lucideアイコンの有効化
             lucide.createIcons();
-            
-            // タグのイベントバインド（新規投稿フォーム内）
             initNewPostFormTags();
         }
 
+        // --- 3-1. Firestore シードチェック & 投入 ---
+        async function checkAndSeedFirestore() {
+            // Universitiesのチェック
+            const univCol = collection(db, "universities");
+            const univSnap = await getDocs(univCol);
+            if (univSnap.empty) {
+                console.log("Seeding universities...");
+                for (const u of SEED_UNIVERSITIES) {
+                    await setDoc(doc(db, "universities", u.id), {
+                        name: u.name,
+                        domain: u.domain
+                    });
+                }
+            }
+
+            // Coursesのチェック
+            const courseCol = collection(db, "courses");
+            const courseSnap = await getDocs(courseCol);
+            if (courseSnap.empty) {
+                console.log("Seeding courses...");
+                for (const c of SEED_COURSES) {
+                    await setDoc(doc(db, "courses", c.id), {
+                        universityId: c.universityId,
+                        name: c.name,
+                        prof: c.prof,
+                        day: c.day,
+                        period: c.period,
+                        dept: c.dept,
+                        credits: c.credits,
+                        ratingSum: c.ratingSum,
+                        ratingCount: c.ratingCount
+                    });
+                }
+            }
+
+            // Postsのチェック
+            const postCol = collection(db, "posts");
+            const postSnap = await getDocs(postCol);
+            if (postSnap.empty) {
+                console.log("Seeding posts...");
+                for (const p of SEED_POSTS) {
+                    await setDoc(doc(db, "posts", p.id), {
+                        courseId: p.courseId,
+                        userId: p.userId,
+                        nickname: p.nickname,
+                        content: p.content,
+                        tag: p.tag,
+                        timestamp: p.timestamp,
+                        likesCount: p.likesCount,
+                        attachment: p.attachment,
+                        replies: p.replies
+                    });
+                }
+            }
+        }
+
+        // --- 3-2. 大学一覧の取得 ---
+        async function loadUniversities() {
+            try {
+                const querySnapshot = await getDocs(collection(db, "universities"));
+                state.universities = [];
+                querySnapshot.forEach((doc) => {
+                    state.universities.push({ id: doc.id, ...doc.data() });
+                });
+            } catch (err) {
+                console.error("Error loading universities:", err);
+            }
+        }
+
         // ==========================================================================
-        // 4. データアクセス・ヘルパー
+        // 4. データアクセス・ヘルパー (LocalStorage 用)
         // ==========================================================================
         function loadFromStorage(key, defaultValue) {
             const data = localStorage.getItem(key);
@@ -1561,7 +1663,6 @@
                 if (e.state && e.state.view) {
                     switchView(e.state.view, e.state.courseId, false);
                 } else {
-                    // ハッシュベースのフォールバック
                     const hash = window.location.hash.replace('#/', '');
                     const parts = hash.split('/');
                     if (parts[0] === 'board' && parts[1]) {
@@ -1595,7 +1696,6 @@
             state.currentView = view;
             if (courseId) state.selectedCourseId = courseId;
 
-            // 履歴への追加
             if (pushState) {
                 let url = `#/${view}`;
                 if (view === 'board' && courseId) {
@@ -1604,7 +1704,7 @@
                 window.history.pushState({ view, courseId }, '', url);
             }
 
-            // ボトムナビのハイライト更新
+            // ボトムナビ更新
             document.querySelectorAll('.bottom-nav .nav-item').forEach(item => {
                 item.classList.remove('active');
             });
@@ -1612,7 +1712,7 @@
             const activeNavItem = document.getElementById(activeNavId);
             if (activeNavItem) activeNavItem.classList.add('active');
 
-            // FABの表示制御 (掲示板詳細画面のみ表示)
+            // FAB表示制御
             const fab = document.getElementById('post-fab');
             if (view === 'board') {
                 fab.style.display = 'flex';
@@ -1620,15 +1720,93 @@
                 fab.style.display = 'none';
             }
 
+            // スナップショット購読の調整
+            if (view === 'board' && courseId) {
+                subscribePosts(courseId);
+            } else {
+                unsubscribeFromPosts();
+            }
+
             renderCurrentView();
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         // ==========================================================================
-        // 6. ビューの描画管理
+        // 6. Firestore リアルタイム同期監視 (Subscriptions)
+        // ==========================================================================
+        let unsubscribeCourses = null;
+        let unsubscribePosts = null;
+
+        function subscribeCourses(univId) {
+            if (unsubscribeCourses) unsubscribeCourses();
+            
+            const q = query(
+                collection(db, "courses"), 
+                where("universityId", "==", univId)
+            );
+            
+            unsubscribeCourses = onSnapshot(q, (snapshot) => {
+                state.courses = [];
+                snapshot.forEach((doc) => {
+                    state.courses.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // 表示内容をリフレッシュ
+                renderDepartmentFilter();
+                renderTimetableGrid();
+                if (state.currentView === 'home') renderHomeView();
+                if (state.currentView === 'search') handleSearch();
+                
+                lucide.createIcons();
+            }, (error) => {
+                console.error("Courses subscription error:", error);
+            });
+        }
+
+        function subscribePosts(courseId) {
+            if (unsubscribePosts) unsubscribePosts();
+
+            const q = query(
+                collection(db, "posts"),
+                where("courseId", "==", courseId)
+            );
+
+            unsubscribePosts = onSnapshot(q, (snapshot) => {
+                state.posts = [];
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    let ts = data.timestamp;
+                    // Firestoreサーバー側タイムスタンプのタイムラグ変換
+                    if (ts && typeof ts.toMillis === 'function') {
+                        ts = ts.toMillis();
+                    } else if (ts && typeof ts.toDate === 'function') {
+                        ts = ts.toDate().getTime();
+                    } else if (!ts) {
+                        ts = Date.now(); // ローカルでのプレビュー用
+                    }
+                    state.posts.push({ id: doc.id, ...data, timestamp: ts });
+                });
+
+                renderBoardPosts();
+                if (state.currentView === 'home') renderHomeView();
+                
+                lucide.createIcons();
+            }, (error) => {
+                console.error("Posts subscription error:", error);
+            });
+        }
+
+        function unsubscribeFromPosts() {
+            if (unsubscribePosts) {
+                unsubscribePosts();
+                unsubscribePosts = null;
+            }
+        }
+
+        // ==========================================================================
+        // 7. ビューのレンダリング
         // ==========================================================================
         function renderCurrentView() {
-            // すべてのビューを一旦非表示に
             document.querySelectorAll('.view-content').forEach(view => {
                 view.classList.remove('active');
             });
@@ -1636,7 +1814,6 @@
             const activeViewElement = document.getElementById(`${state.currentView}-view`);
             if (activeViewElement) activeViewElement.classList.add('active');
 
-            // 各画面のレンダリング処理
             if (state.currentView === 'home') {
                 renderHomeView();
             } else if (state.currentView === 'search') {
@@ -1646,12 +1823,10 @@
             } else if (state.currentView === 'mypage') {
                 renderMypageView();
             }
-            
-            // アイコン再生成
             lucide.createIcons();
         }
 
-        // --- 6-1. ヘッダー UI 更新 ---
+        // --- 7-1. ヘッダー UI 更新 ---
         function updateHeaderUI() {
             const currentUniv = state.universities.find(u => u.id === state.selectedUniversityId);
             const univText = currentUniv ? currentUniv.name : '大学を選択';
@@ -1659,12 +1834,12 @@
             document.getElementById('home-hero-univ').innerText = `${univText} 匿名ボード`;
         }
 
-        // --- 6-2. ホーム画面の描画 ---
+        // --- 7-2. ホーム画面のレンダリング ---
         function renderHomeView() {
             const currentUnivId = state.selectedUniversityId;
             const coursesInUniv = state.courses.filter(c => c.universityId === currentUnivId);
             
-            // 1. トレンド授業 (投稿数が多い順)
+            // 1. トレンド授業 (投稿数順)
             const trendCourses = coursesInUniv.map(course => {
                 const postsCount = state.posts.filter(p => p.courseId === course.id).length;
                 return { ...course, postsCount };
@@ -1702,7 +1877,8 @@
                 `;
             }
 
-            // 3. 最新の投稿 (大学全体から最新5件)
+            // 3. 最新のクチコミ (大学に関連する最新5件を表示)
+            // Firebaseとのリアルタイム同期で常に最新を反映
             const recentPosts = state.posts.filter(p => {
                 const course = state.courses.find(c => c.id === p.courseId);
                 return course && course.universityId === currentUnivId;
@@ -1724,7 +1900,7 @@
                     
                     item.innerHTML = `
                         <div class="recent-post-header">
-                            <span class="recent-post-title">${escapeHtml(course.name)}</span>
+                            <span class="recent-post-title">${escapeHtml(course ? course.name : '不明な授業')}</span>
                             <span>${timeString}</span>
                         </div>
                         <p class="recent-post-content">${escapeHtml(post.content)}</p>
@@ -1765,10 +1941,10 @@
             return card;
         }
 
-        // --- 6-3. 時間割・検索画面の描画 ---
+        // --- 7-3. 時間割・検索画面のレンダリング ---
         function renderSearchView() {
             renderTimetableGrid();
-            handleSearch(); // 検索およびフィルタ結果を描画
+            handleSearch();
         }
 
         function renderDepartmentFilter() {
@@ -1777,6 +1953,7 @@
             const departments = [...new Set(courses.map(c => c.dept))];
             
             const select = document.getElementById('filter-dept');
+            const currentValue = select.value;
             select.innerHTML = '<option value="">学部/学科: すべて</option>';
             departments.forEach(dept => {
                 const opt = document.createElement('option');
@@ -1784,6 +1961,8 @@
                 opt.textContent = dept;
                 select.appendChild(opt);
             });
+            // 選択状態を保持
+            select.value = currentValue;
         }
 
         function renderTimetableGrid() {
@@ -1791,26 +1970,22 @@
             const courses = state.courses.filter(c => c.universityId === currentUnivId);
             
             const gridBody = document.getElementById('timetable-grid-body');
-            // ヘッダー行以外の要素をリセット
             const headerCells = gridBody.querySelectorAll('.timetable-header-cell');
             gridBody.innerHTML = '';
-            gridBody.appendChild(document.createElement('div')); // 左上スペース
+            gridBody.appendChild(document.createElement('div'));
             headerCells.forEach(cell => gridBody.appendChild(cell.cloneNode(true)));
 
             const days = ['月', '火', '水', '木', '金'];
             
             for (let period = 1; period <= 5; period++) {
-                // 1列目: 時限ラベル
+                // 時限インジケータ
                 const timeCell = document.createElement('div');
                 timeCell.className = 'timetable-time-cell';
                 timeCell.innerHTML = `<div>${period}</div><div style="font-size:7px; font-weight:normal;">限</div>`;
                 gridBody.appendChild(timeCell);
                 
-                // 2〜6列目: 各曜日のセル
                 days.forEach(day => {
                     const cell = document.createElement('div');
-                    
-                    // その時限にある授業を検索
                     const course = courses.find(c => c.day === day && c.period === String(period));
                     
                     if (course) {
@@ -1825,7 +2000,6 @@
                         cell.innerHTML = `<span>+</span>`;
                         cell.onclick = () => openAddCourseModal(day, period);
                     }
-                    
                     gridBody.appendChild(cell);
                 });
             }
@@ -1855,7 +2029,6 @@
                 results = results.filter(c => c.day === state.filterDay);
             }
 
-            // 件数テキスト更新
             document.getElementById('results-count-text').innerText = `該当する授業 (${results.length}件)`;
 
             const resultsContainer = document.getElementById('search-results-container');
@@ -1905,7 +2078,7 @@
             lucide.createIcons();
         }
 
-        // --- 6-4. 授業掲示板画面の描画 ---
+        // --- 7-4. 授業掲示板画面のレンダリング ---
         function renderBoardView() {
             const course = state.courses.find(c => c.id === state.selectedCourseId);
             if (!course) {
@@ -1913,12 +2086,10 @@
                 return;
             }
 
-            // 掲示板ヘッダー
             const headerContainer = document.getElementById('board-header-container');
             const isFav = state.favorites.includes(course.id);
             const rating = course.ratingCount > 0 ? (course.ratingSum / course.ratingCount).toFixed(1) : 'なし';
             
-            // 簡易レーティング星作成
             let starsHtml = '';
             const floorRating = Math.round(course.ratingCount > 0 ? course.ratingSum / course.ratingCount : 0);
             for(let i=1; i<=5; i++) {
@@ -1969,12 +2140,10 @@
         function renderBoardPosts() {
             let posts = state.posts.filter(p => p.courseId === state.selectedCourseId);
 
-            // タグフィルター
             if (state.boardFilterTag !== 'all') {
                 posts = posts.filter(p => p.tag === state.boardFilterTag);
             }
 
-            // スレッド内キーワード検索
             if (state.boardSearchQuery) {
                 const query = state.boardSearchQuery.toLowerCase();
                 posts = posts.filter(p => 
@@ -1983,7 +2152,6 @@
                 );
             }
 
-            // 日時降順
             posts.sort((a, b) => b.timestamp - a.timestamp);
 
             const container = document.getElementById('board-posts-container');
@@ -1999,7 +2167,6 @@
                     card.className = 'post-card fade-in';
                     card.id = `post-${post.id}`;
                     
-                    // 添付ファイル（画像）の描画
                     let attachmentHtml = '';
                     if (post.attachment) {
                         attachmentHtml = `
@@ -2009,7 +2176,6 @@
                         `;
                     }
 
-                    // リプライの描画
                     let repliesHtml = '';
                     if (post.replies && post.replies.length > 0) {
                         repliesHtml = '<div class="replies-container">';
@@ -2077,16 +2243,14 @@
             renderBoardPosts();
         }
 
-        // --- 6-5. マイページ画面の描画 ---
+        // --- 7-5. マイページ画面のレンダリング ---
         function renderMypageView() {
-            // プロフィール情報
             document.getElementById('mypage-nickname-text').innerText = state.currentUser.nickname;
             document.getElementById('mypage-avatar').innerText = state.currentUser.nickname.charAt(0);
             
             const currentUniv = state.universities.find(u => u.id === state.selectedUniversityId);
             document.getElementById('mypage-univ-name').innerText = currentUniv ? currentUniv.name : '未設定の大学';
 
-            // 認証ステータスの描画
             const authContainer = document.getElementById('auth-status-container');
             if (state.currentUser.isAuthenticated) {
                 authContainer.innerHTML = `
@@ -2108,7 +2272,7 @@
                 `;
             }
 
-            // 自分の投稿履歴
+            // 自分の投稿履歴をリアルタイム同期データから抽出
             const myPosts = state.posts.filter(p => p.userId === state.currentUser.id);
             const myPostsContainer = document.getElementById('mypage-my-posts');
             myPostsContainer.innerHTML = '';
@@ -2144,10 +2308,10 @@
         }
 
         // ==========================================================================
-        // 7. インタラクション & 各種処理
+        // 8. データベース書き込み処理
         // ==========================================================================
 
-        // --- 7-1. 大学の選択・切り替え・追加 ---
+        // --- 8-1. 大学の切り替え・登録 ---
         function openUniversityModal() {
             const listContainer = document.getElementById('univ-list-selection');
             listContainer.innerHTML = '';
@@ -2176,7 +2340,6 @@
             state.selectedUniversityId = univId;
             state.currentUser.universityId = univId;
             
-            // 認証ドメインが合わなくなった場合は未認証にする (デモ用簡易)
             const univ = state.universities.find(u => u.id === univId);
             if (state.currentUser.isAuthenticated && state.currentUser.email && !state.currentUser.email.endsWith(univ.domain)) {
                 state.currentUser.isAuthenticated = false;
@@ -2186,51 +2349,55 @@
             saveToStorage(STORAGE_KEYS.USER, state.currentUser);
             
             updateHeaderUI();
-            renderDepartmentFilter();
             
-            // 検索とホームをリフレッシュ
-            if (state.currentView === 'home') {
-                renderHomeView();
-            } else if (state.currentView === 'search') {
-                renderSearchView();
-            } else if (state.currentView === 'board') {
-                // 掲示板詳細中に大学を変えたらホームへ戻す
+            // 該当大学の授業の監視を開始
+            subscribeCourses(univId);
+            
+            if (state.currentView === 'board') {
                 navigate('home');
+            } else {
+                renderCurrentView();
             }
         }
 
-        function addNewUniversity() {
+        async function addNewUniversity() {
             const input = document.getElementById('new-univ-input');
             const name = input.value.trim();
             if (!name) return;
 
-            // 簡易ドメイン生成 (例: "京都大学" -> "kyoto-u.ac.jp")
             const pyName = name.replace('大学','').toLowerCase();
             const domain = (pyName === '京都' ? 'kyoto-u' : pyName) + '.ac.jp';
             
-            const newUniv = {
-                id: 'univ-' + Math.random().toString(36).substr(2, 9),
-                name: name,
-                domain: domain
-            };
+            const univId = 'univ-' + Math.random().toString(36).substr(2, 9);
 
-            state.universities.push(newUniv);
-            saveToStorage(STORAGE_KEYS.UNIVERSITIES, state.universities);
-            
-            input.value = '';
-            selectUniversity(newUniv.id);
-            closeModal('modal-university');
-            alert(`大学「${name}」を追加しました。`);
+            try {
+                // Firestoreへ新規大学ドキュメント追加
+                await setDoc(doc(db, "universities", univId), {
+                    name: name,
+                    domain: domain
+                });
+
+                // ローカルの大学リストも更新
+                await loadUniversities();
+                
+                input.value = '';
+                selectUniversity(univId);
+                closeModal('modal-university');
+                alert(`大学「${name}」を追加しました！`);
+            } catch (err) {
+                console.error("Error adding university:", err);
+                alert("大学の登録に失敗しました。");
+            }
         }
 
-        // --- 7-2. 新規授業の追加 ---
+        // --- 8-2. 新規授業の追加 (Firestore) ---
         function openAddCourseModal(day = '月', period = 1) {
             document.getElementById('new-course-day').value = day;
             document.getElementById('new-course-period').value = String(period);
             openModal('modal-add-course');
         }
 
-        function saveNewCourse(event) {
+        async function saveNewCourse(event) {
             event.preventDefault();
             const name = document.getElementById('new-course-name').value.trim();
             const prof = document.getElementById('new-course-prof').value.trim();
@@ -2241,7 +2408,7 @@
 
             const currentUnivId = state.selectedUniversityId;
 
-            // バリデーション: 重複チェック (同じコマにすでに登録がないか)
+            // コマの重複チェック
             const duplicate = state.courses.find(c => 
                 c.universityId === currentUnivId && c.day === day && c.period === period
             );
@@ -2250,41 +2417,42 @@
                 return;
             }
 
-            const newCourse = {
-                id: 'course-' + Math.random().toString(36).substr(2, 9),
-                universityId: currentUnivId,
-                name,
-                prof: prof + ' 教授',
-                day,
-                period,
-                dept,
-                credits,
-                ratingSum: 0,
-                ratingCount: 0
-            };
+            const submitBtn = event.target.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerText = '登録中...';
 
-            state.courses.push(newCourse);
-            saveToStorage(STORAGE_KEYS.COURSES, state.courses);
+            try {
+                const docRef = await addDoc(collection(db, "courses"), {
+                    universityId: currentUnivId,
+                    name: name,
+                    prof: prof + ' 教授',
+                    day: day,
+                    period: period,
+                    dept: dept,
+                    credits: credits,
+                    ratingSum: 0,
+                    ratingCount: 0
+                });
 
-            document.getElementById('add-course-form').reset();
-            closeModal('modal-add-course');
+                document.getElementById('add-course-form').reset();
+                closeModal('modal-add-course');
 
-            renderDepartmentFilter();
-            if (state.currentView === 'search') {
-                renderSearchView();
-            } else {
-                navigate('search');
+                // 新しく作成された授業掲示板へ遷移
+                navigate('board', docRef.id);
+            } catch (err) {
+                console.error("Error saving new course:", err);
+                alert("授業の登録に失敗しました。");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = '授業を登録';
             }
-
-            // 新しく追加した授業掲示板へ遷移
-            navigate('board', newCourse.id);
         }
 
-        // --- 7-3. 新規投稿 (画像プレビュー処理含む) ---
+        // --- 8-3. 新規投稿 (Firebase Storage & Firestore) ---
         function openNewPostModal() {
             const course = state.courses.find(c => c.id === state.selectedCourseId);
             document.getElementById('post-modal-title').innerText = `「${course.name}」へ投稿する`;
-            removeSelectedFile(); // 前回の添付クリア
+            removeSelectedFile();
             openModal('modal-new-post');
         }
 
@@ -2297,15 +2465,17 @@
                 return;
             }
 
-            // 容量チェック (localStorage上限対策として、小さめにする)
-            if (file.size > 800 * 1024) { // 800KB
-                alert('ファイルサイズが大きすぎます。800KB以下の画像を選択してください。');
+            // 1MB以下の制限 (Firebase Storageへの転送速度および負荷考慮)
+            if (file.size > 1024 * 1024) { 
+                alert('ファイルサイズが大きすぎます。1MB以下の画像を選択してください。');
                 return;
             }
 
-            state.tempSelectedFileName = file.name;
+            // ファイルオブジェクトそのものをステートに保持
+            state.tempSelectedFile = file;
             document.getElementById('post-file-name').innerText = file.name;
 
+            // ローカル表示用にBase64プレビュー
             const reader = new FileReader();
             reader.onload = function(evt) {
                 state.tempSelectedFileBase64 = evt.target.result;
@@ -2317,8 +2487,8 @@
         }
 
         function removeSelectedFile() {
+            state.tempSelectedFile = null;
             state.tempSelectedFileBase64 = null;
-            state.tempSelectedFileName = null;
             document.getElementById('post-file-input').value = '';
             document.getElementById('post-file-name').innerText = '選択されていません';
             document.getElementById('post-file-preview-wrap').style.display = 'none';
@@ -2339,7 +2509,7 @@
             });
         }
 
-        function saveNewPost(event) {
+        async function saveNewPost(event) {
             event.preventDefault();
             const checkedRadio = document.querySelector('input[name="post-tag"]:checked');
             if (!checkedRadio) {
@@ -2349,60 +2519,81 @@
 
             const tag = checkedRadio.value;
             const content = document.getElementById('post-content-input').value.trim();
-
             if (!content) return;
 
-            const newPost = {
-                id: 'post-' + Math.random().toString(36).substr(2, 9),
-                courseId: state.selectedCourseId,
-                userId: state.currentUser.id,
-                nickname: state.currentUser.nickname,
-                content: content,
-                tag: tag,
-                timestamp: Date.now(),
-                likesCount: 0,
-                attachment: state.tempSelectedFileBase64,
-                replies: []
-            };
+            const submitBtn = event.target.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerText = '送信中...';
 
-            state.posts.push(newPost);
-            saveToStorage(STORAGE_KEYS.POSTS, state.posts);
+            try {
+                let attachmentUrl = null;
 
-            // フォームリセット
-            document.getElementById('new-post-form').reset();
-            document.querySelectorAll('#post-form-tags .tag-pill').forEach(p => p.classList.remove('active'));
-            removeSelectedFile();
+                // 画像添付がある場合は Firebase Storage へアップロード
+                if (state.tempSelectedFile) {
+                    const fileExtension = state.tempSelectedFile.name.split('.').pop();
+                    const uniqueFileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExtension}`;
+                    const storageRef = ref(storage, `post_images/${uniqueFileName}`);
+                    
+                    // アップロード
+                    await uploadBytes(storageRef, state.tempSelectedFile);
+                    attachmentUrl = await getDownloadURL(storageRef);
+                }
 
-            closeModal('modal-new-post');
+                // Firestoreへドキュメント追加
+                await addDoc(collection(db, "posts"), {
+                    courseId: state.selectedCourseId,
+                    userId: state.currentUser.id,
+                    nickname: state.currentUser.nickname,
+                    content: content,
+                    tag: tag,
+                    timestamp: serverTimestamp(), // サーバー側時間を使用
+                    likesCount: 0,
+                    attachment: attachmentUrl,
+                    replies: []
+                });
 
-            // 掲示板ビューを再描画
-            renderBoardPosts();
-        }
+                document.getElementById('new-post-form').reset();
+                document.querySelectorAll('#post-form-tags .tag-pill').forEach(p => p.classList.remove('active'));
+                removeSelectedFile();
 
-        // --- 7-4. いいね機能 ---
-        function toggleLike(postId) {
-            const postIndex = state.posts.findIndex(p => p.id === postId);
-            if (postIndex === -1) return;
-
-            const likeIndex = state.likes.indexOf(postId);
-            if (likeIndex === -1) {
-                // いいね！
-                state.likes.push(postId);
-                state.posts[postIndex].likesCount = (state.posts[postIndex].likesCount || 0) + 1;
-            } else {
-                // いいね解除
-                state.likes.splice(likeIndex, 1);
-                state.posts[postIndex].likesCount = Math.max(0, (state.posts[postIndex].likesCount || 1) - 1);
+                closeModal('modal-new-post');
+            } catch (err) {
+                console.error("Error creating post:", err);
+                alert("投稿に失敗しました。時間をおいて再度お試しください。");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = '投稿する';
             }
-
-            saveToStorage(STORAGE_KEYS.LIKES, state.likes);
-            saveToStorage(STORAGE_KEYS.POSTS, state.posts);
-
-            // 部分描画の代わりにリスト更新
-            renderBoardPosts();
         }
 
-        // --- 7-5. お気に入り登録 ---
+        // --- 8-4. いいね機能 (Firestore) ---
+        async function toggleLike(postId) {
+            const likeIndex = state.likes.indexOf(postId);
+            const postRef = doc(db, "posts", postId);
+
+            try {
+                if (likeIndex === -1) {
+                    // いいね！追加
+                    state.likes.push(postId);
+                    await updateDoc(postRef, {
+                        likesCount: increment(1)
+                    });
+                } else {
+                    // いいね解除
+                    state.likes.splice(likeIndex, 1);
+                    await updateDoc(postRef, {
+                        likesCount: increment(-1)
+                    });
+                }
+                saveToStorage(STORAGE_KEYS.LIKES, state.likes);
+                
+                // onSnapshot監視のため、自動でUI再レンダリングが行われます
+            } catch (err) {
+                console.error("Error toggling like:", err);
+            }
+        }
+
+        // --- 8-5. お気に入り授業登録 (ローカル) ---
         function toggleFavorite(courseId) {
             const index = state.favorites.indexOf(courseId);
             if (index === -1) {
@@ -2411,12 +2602,10 @@
                 state.favorites.splice(index, 1);
             }
             saveToStorage(STORAGE_KEYS.FAVORITES, state.favorites);
-
-            // ボードヘッダー再描画
             renderBoardView();
         }
 
-        // --- 7-6. リプライ(返信)機能 ---
+        // --- 8-6. 返信(リプライ)機能 (Firestore arrayUnion) ---
         function openReplyModal(postId) {
             const post = state.posts.find(p => p.id === postId);
             if (!post) return;
@@ -2437,39 +2626,45 @@
             openModal('modal-reply');
         }
 
-        function saveReply(event) {
+        async function saveReply(event) {
             event.preventDefault();
             const content = document.getElementById('reply-content-input').value.trim();
             if (!content) return;
 
-            const postIndex = state.posts.findIndex(p => p.id === state.tempReplyTargetPostId);
-            if (postIndex === -1) return;
+            const submitBtn = event.target.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerText = '返信中...';
 
-            const newReply = {
-                id: 'reply-' + Math.random().toString(36).substr(2, 9),
-                nickname: state.currentUser.nickname,
-                content: content,
-                timestamp: Date.now()
-            };
+            try {
+                const newReply = {
+                    id: 'reply-' + Math.random().toString(36).substr(2, 9),
+                    nickname: state.currentUser.nickname,
+                    content: content,
+                    timestamp: Date.now()
+                };
 
-            if (!state.posts[postIndex].replies) {
-                state.posts[postIndex].replies = [];
+                const postRef = doc(db, "posts", state.tempReplyTargetPostId);
+                
+                // Firestore アレイ更新
+                await updateDoc(postRef, {
+                    replies: arrayUnion(newReply)
+                });
+
+                closeModal('modal-reply');
+                state.tempReplyTargetPostId = null;
+            } catch (err) {
+                console.error("Error replying:", err);
+                alert("返信に失敗しました。");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = '返信する';
             }
-            state.posts[postIndex].replies.push(newReply);
-            
-            saveToStorage(STORAGE_KEYS.POSTS, state.posts);
-            
-            closeModal('modal-reply');
-            state.tempReplyTargetPostId = null;
-
-            // 掲示板リロード
-            renderBoardPosts();
         }
 
-        // --- 7-7. 授業評価レーティング機能 ---
-        function openRatingPrompt() {
+        // --- 8-7. 授業評価レーティング (Firestore) ---
+        async function openRatingPrompt() {
             const scoreStr = prompt("この授業の評価を1〜5の数値で入力してください（1:最悪、5:最高）", "4");
-            if (scoreStr === null) return; // キャンセル
+            if (scoreStr === null) return;
 
             const score = parseInt(scoreStr);
             if (isNaN(score) || score < 1 || score > 5) {
@@ -2477,20 +2672,20 @@
                 return;
             }
 
-            const courseIndex = state.courses.findIndex(c => c.id === state.selectedCourseId);
-            if (courseIndex === -1) return;
-
-            const course = state.courses[courseIndex];
-            course.ratingSum = (course.ratingSum || 0) + score;
-            course.ratingCount = (course.ratingCount || 0) + 1;
-
-            saveToStorage(STORAGE_KEYS.COURSES, state.courses);
-            
-            renderBoardView(); // ヘッダーをリフレッシュ
-            alert("授業評価を登録しました。ご協力ありがとうございました！");
+            try {
+                const courseRef = doc(db, "courses", state.selectedCourseId);
+                await updateDoc(courseRef, {
+                    ratingSum: increment(score),
+                    ratingCount: increment(1)
+                });
+                alert("授業評価を登録しました。ご協力ありがとうございました！");
+            } catch (err) {
+                console.error("Error rating course:", err);
+                alert("評価の保存に失敗しました。");
+            }
         }
 
-        // --- 7-8. プロフィール設定 ---
+        // --- 8-8. プロフィール設定 ---
         function openProfileEditModal() {
             document.getElementById('profile-nickname-input').value = state.currentUser.nickname;
             openModal('modal-profile');
@@ -2508,7 +2703,7 @@
             renderMypageView();
         }
 
-        // --- 7-9. 簡易大学認証 (デモ用) ---
+        // --- 8-9. 簡易大学認証 (デモ用) ---
         function handleDummyAuth(event) {
             event.preventDefault();
             const email = document.getElementById('auth-email-input').value.trim();
@@ -2516,13 +2711,11 @@
             
             if (!currentUniv) return;
 
-            // ドメインチェック
             if (!email.endsWith(currentUniv.domain)) {
                 alert(`エラー: この大学の認証には「@${currentUniv.domain}」で終わるメールアドレスを入力してください。`);
                 return;
             }
 
-            // ダミー認証プロセスのシミュレート
             const code = prompt("認証メールを送信しました！メールに記載されている4桁のコードを入力してください。(ヒント: 1234)", "");
             if (code === "1234") {
                 state.currentUser.isAuthenticated = true;
@@ -2535,8 +2728,8 @@
             }
         }
 
-        // --- 7-10. 添付画像の拡大表示 (LightBox風) ---
-        function viewLargeImage(base64Url) {
+        // --- 8-10. 添付画像の拡大表示 ---
+        function viewLargeImage(imageUrl) {
             const overlay = document.createElement('div');
             overlay.style.position = 'fixed';
             overlay.style.top = 0;
@@ -2552,7 +2745,7 @@
             overlay.onclick = () => document.body.removeChild(overlay);
 
             const img = document.createElement('img');
-            img.src = base64Url;
+            img.src = imageUrl;
             img.style.maxWidth = '90%';
             img.style.maxHeight = '90%';
             img.style.borderRadius = '8px';
@@ -2563,7 +2756,7 @@
         }
 
         // ==========================================================================
-        // 8. ユーティリティ・ヘルパー関数
+        // 9. ユーティリティ・ヘルパー関数
         // ==========================================================================
         function openModal(modalId) {
             const modal = document.getElementById(modalId);
@@ -2576,6 +2769,7 @@
         }
 
         function formatTime(timestamp) {
+            if (!timestamp) return 'たった今';
             const diffMs = Date.now() - timestamp;
             const diffMins = Math.floor(diffMs / (1000 * 60));
             const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
@@ -2591,7 +2785,6 @@
         }
 
         function getTagClass(tag) {
-            // スタイルクラスのマッピング
             const mapping = {
                 '過去問': 'tag-past-exams',
                 '課題': 'tag-assignments',
@@ -2623,7 +2816,33 @@
                 .replace(/'/g, "&#039;");
         }
 
-        // ページロード完了時に起動
+        // --------------------------------------------------------------------------
+        // インライン HTML イベントハンドラ用に window スコープに関数を露出させる
+        // --------------------------------------------------------------------------
+        window.navigate = navigate;
+        window.openUniversityModal = openUniversityModal;
+        window.addNewUniversity = addNewUniversity;
+        window.saveNewCourse = saveNewCourse;
+        window.openAddCourseModal = openAddCourseModal;
+        window.openNewPostModal = openNewPostModal;
+        window.handleFileSelect = handleFileSelect;
+        window.removeSelectedFile = removeSelectedFile;
+        window.saveNewPost = saveNewPost;
+        window.toggleLike = toggleLike;
+        window.toggleFavorite = toggleFavorite;
+        window.openReplyModal = openReplyModal;
+        window.saveReply = saveReply;
+        window.openRatingPrompt = openRatingPrompt;
+        window.openProfileEditModal = openProfileEditModal;
+        window.saveProfile = saveProfile;
+        window.handleDummyAuth = handleDummyAuth;
+        window.closeModal = closeModal;
+        window.filterBoardTag = filterBoardTag;
+        window.handleBoardSearch = handleBoardSearch;
+        window.handleSearch = handleSearch;
+        window.viewLargeImage = viewLargeImage;
+
+        // ページロード時に起動
         window.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
